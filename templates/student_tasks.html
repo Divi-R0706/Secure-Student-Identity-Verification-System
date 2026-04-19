@@ -1,0 +1,65 @@
+﻿{% extends "base_dashboard.html" %}
+{% block content %}
+<article class="card task-entry-card">
+    <div class="section-header">
+        <div>
+            <h2>{{ _("Create Task") }}</h2>
+            <div class="page-subtitle">{{ _("Add a task title and deadline in the two-column planner below.") }}</div>
+        </div>
+    </div>
+    <form method="post" class="task-form-grid">
+        <input type="hidden" name="action" value="add">
+        <div class="field task-field-main">
+            <label>{{ _("Task Description") }}</label>
+            <input class="input form-input" type="text" name="title" placeholder="{{ _('Enter new task') }}" required>
+        </div>
+        <div class="field task-field-time">
+            <label>{{ _("Date & Time") }}</label>
+            <input class="input form-input" type="datetime-local" name="deadline_at" min="{{ min_deadline_at }}" required>
+        </div>
+        <div class="button-row task-button-row">
+            <button class="primary-btn" type="submit">{{ _("Add Task") }}</button>
+        </div>
+    </form>
+</article>
+
+<div class="task-list card-spaced">
+    {% for task in tasks %}
+    {% set overdue = task.is_overdue %}
+    <article class="task-card task-item {{ 'overdue' if overdue else ('completed done-task' if task.is_done else 'pending') }}">
+        <div class="task-row">
+            <div class="task-copy">
+                <h3 class="task-title">{{ display_task_title(task.title) }}</h3>
+                <div class="hint">{{ _("Due") }} {{ task.deadline_at|task_datetime if task.deadline_at else task.created_at|datetime }}</div>
+            </div>
+            <div class="task-actions">
+                <span class="status-pill {{ 'done' if task.is_done else ('overdue' if overdue else 'pending') }}">{{ _('Completed') if task.is_done else (_('Overdue') if overdue else _('Pending')) }}</span>
+                <form method="post">
+                    <input type="hidden" name="action" value="toggle">
+                    <input type="hidden" name="task_id" value="{{ task.id }}">
+                    <button class="icon-btn task-complete-btn" type="submit" aria-label="{{ _('Undo task') if task.is_done else _('Mark task done') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+                    </button>
+                </form>
+                <form method="post">
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="task_id" value="{{ task.id }}">
+                    <button class="btn-icon btn-trash" type="submit" title="{{ _('Delete') }}" aria-label="{{ _('Delete') }}">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% if overdue %}
+        <div class="error-text task-alert">{{ _("Deadline ended. Please update this task now.") }}</div>
+        {% endif %}
+    </article>
+    {% else %}
+    <article class="empty-state">
+        <h3 class="empty-copy">{{ _("No tasks added yet") }}</h3>
+        <p>{{ _("Create your first task to start tracking deadlines.") }}</p>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}
+

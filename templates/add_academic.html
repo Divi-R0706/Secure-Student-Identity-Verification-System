@@ -1,0 +1,48 @@
+﻿{% extends "base_dashboard.html" %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>{{ _("Add Academic Data") }}</h1>
+        <div class="page-subtitle">{{ _("Academic profile details for the selected student, styled with the same authenticated layout.") }}</div>
+    </div>
+    <div class="page-actions"><a class="outline-btn" href="{{ url_for('school_admin_dashboard') }}">{{ _("Back to Admin") }}</a></div>
+</section>
+
+<article class="card">
+    <form method="POST">
+        <div class="form-grid form-grid-2">
+            <div class="field"><label>{{ _("Attendance Percentage") }}</label><input class="input form-input" type="number" name="percentage" min="0" max="100" placeholder="{{ _('Enter attendance percentage') }}" value="{{ attendance.percentage if attendance else '' }}" required></div>
+            <div class="field"><label>{{ _("Current Semester") }}</label><input class="input form-input" type="text" name="semester" value="{{ academic_profile.current_semester if academic_profile else 'S1' }}" placeholder="{{ _('Enter current semester') }}" required></div>
+            <div class="field"><label>{{ _("Year Of Study") }}</label><input class="input form-input" type="number" name="year_of_study" min="1" max="6" value="{{ academic_profile.year_of_study if academic_profile else 1 }}" placeholder="{{ _('Enter year') }}" required></div>
+            <div class="field"><label>{{ _("Arrear Count") }}</label><input class="input form-input" type="number" name="arrear_count" min="0" value="{{ academic_profile.arrear_count if academic_profile else 0 }}" placeholder="{{ _('Enter arrear count') }}" required></div>
+            <div class="field"><label>{{ _("Boarding Status") }}</label><input class="input form-input" type="text" name="boarding_status" value="{{ academic_profile.boarding_status if academic_profile else 'Day Scholar' }}" placeholder="{{ _('Hosteller or Day Scholar') }}" required></div>
+            <div class="field"><label>{{ _("Warden Name") }}</label><input class="input form-input" type="text" name="warden_name" value="{{ academic_profile.warden_name if academic_profile and academic_profile.warden_name else '' }}" list="warden-options" placeholder="{{ _('Enter/select warden name') }}"><datalist id="warden-options">{% for w in wardens %}<option value="{{ w.name }}">{% endfor %}</datalist></div>
+            <div class="field"><label>SGPA</label><input class="input form-input" type="number" name="sgpa" step="0.01" min="0" max="10" value="{{ academic_profile.sgpa if academic_profile else 0 }}" placeholder="{{ _('Enter SGPA') }}" required></div>
+            <div class="field"><label>CGPA</label><input class="input form-input" type="number" name="cgpa" step="0.01" min="0" max="10" value="{{ academic_profile.cgpa if academic_profile else 0 }}" placeholder="{{ _('Enter CGPA') }}" required></div>
+            <div class="field span-2"><label>{{ _("Course (Course ID - Course Name)") }}</label><div id="course-list">{% if courses %}{% for c in courses %}<div class="field-wrap" style="margin-bottom:10px;"><input class="input form-input" type="text" name="course_entry[]" value="{{ c.course_code }} - {{ c.course_name }}" placeholder="{{ _('Enter course id - course name') }}" required><button type="button" class="btn-icon btn-trash" onclick="removeCourseRow(this)" aria-label="{{ _('Remove course') }}" title="{{ _('Remove course') }}" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);">×</button></div>{% endfor %}{% else %}<div class="field-wrap" style="margin-bottom:10px;"><input class="input form-input" type="text" name="course_entry[]" placeholder="{{ _('Enter course id - course name') }}" required><button type="button" class="btn-icon btn-trash" onclick="removeCourseRow(this)" aria-label="{{ _('Remove course') }}" title="{{ _('Remove course') }}" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);">×</button></div>{% endif %}</div><button type="button" class="outline-btn" onclick="addCourseRow()">{{ _("Add Course") }}</button><div class="hint">{{ _("Example: CS101 - Database Management Systems") }}</div></div>
+            <div class="button-row span-2"><button class="primary-btn" type="submit">{{ _("Save Academic Data") }}</button></div>
+        </div>
+    </form>
+</article>
+<script>
+function addCourseRow() {
+    const list = document.getElementById('course-list');
+    const coursePlaceholder = {{ _("Enter course id - course name")|tojson }};
+    const removeCourseLabel = {{ _("Remove course")|tojson }};
+    const row = document.createElement('div');
+    row.className = 'field-wrap';
+    row.style.marginBottom = '10px';
+    row.innerHTML = `<input class="input form-input" type="text" name="course_entry[]" placeholder="${coursePlaceholder}" required><button type="button" class="btn-icon btn-trash" onclick="removeCourseRow(this)" aria-label="${removeCourseLabel}" title="${removeCourseLabel}" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);">×</button>`;
+    list.appendChild(row);
+}
+function removeCourseRow(button) {
+    const list = document.getElementById('course-list');
+    if (list.children.length <= 1) {
+        list.children[0].querySelector('input').value = '';
+        return;
+    }
+    button.parentElement.remove();
+}
+</script>
+{% endblock %}
+

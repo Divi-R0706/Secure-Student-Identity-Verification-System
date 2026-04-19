@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5fbf8"/>
+      <stop offset="100%" stop-color="#eef7f1"/>
+    </linearGradient>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1b8d57"/>
+      <stop offset="100%" stop-color="#0f6c42"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#234735" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .h1{font:800 48px "Segoe UI",Arial,sans-serif;fill:#163b2b}
+      .h2{font:700 24px "Segoe UI",Arial,sans-serif;fill:#173a2c}
+      .p{font:400 19px "Segoe UI",Arial,sans-serif;fill:#5d7569}
+      .label{font:700 18px "Segoe UI",Arial,sans-serif;fill:#ffffff}
+      .item{font:600 18px "Segoe UI",Arial,sans-serif;fill:#164233}
+      .small{font:600 16px "Segoe UI",Arial,sans-serif;fill:#5d7569}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g transform="translate(64 52)">
+    <text x="0" y="56" class="h1">System Architecture Overview</text>
+    <text x="0" y="92" class="p">Layered Flask application with role-based dashboards, secure document handling, and SQLite persistence.</text>
+
+    <g transform="translate(0 150)">
+      <rect width="1472" height="650" rx="30" fill="#ffffff" filter="url(#shadow)"/>
+
+      <!-- user layer -->
+      <g transform="translate(64 48)">
+        <text x="0" y="0" class="h2">User Layer</text>
+        <rect x="0" y="24" width="1344" height="110" rx="24" fill="#eff8f2" stroke="#cfe4d7"/>
+        <g transform="translate(42 46)">
+          <circle cx="36" cy="18" r="18" fill="url(#g1)"/>
+          <text x="84" y="24" class="item">Student</text>
+        </g>
+        <g transform="translate(280 46)">
+          <circle cx="36" cy="18" r="18" fill="url(#g1)"/>
+          <text x="84" y="24" class="item">Admin</text>
+        </g>
+        <g transform="translate(510 46)">
+          <circle cx="36" cy="18" r="18" fill="url(#g1)"/>
+          <text x="84" y="24" class="item">Super Admin</text>
+        </g>
+        <g transform="translate(820 46)">
+          <circle cx="36" cy="18" r="18" fill="url(#g1)"/>
+          <text x="84" y="24" class="item">Public QR Visitor</text>
+        </g>
+      </g>
+
+      <!-- app layer -->
+      <g transform="translate(64 198)">
+        <text x="0" y="0" class="h2">Application Layer</text>
+        <rect x="0" y="24" width="1344" height="250" rx="24" fill="#fbfdfc" stroke="#dbe8e0"/>
+        <g transform="translate(30 56)">
+          <rect width="250" height="160" rx="22" fill="#e8f5ed" stroke="#cfe4d7"/>
+          <text x="24" y="38" class="label" fill="#173a2c">Student Module</text>
+          <text x="24" y="74" class="small">Login</text>
+          <text x="24" y="102" class="small">Dashboard</text>
+          <text x="24" y="130" class="small">Upload / ID card</text>
+        </g>
+        <g transform="translate(320 56)">
+          <rect width="250" height="160" rx="22" fill="#e8f5ed" stroke="#cfe4d7"/>
+          <text x="24" y="38" class="label" fill="#173a2c">Admin Module</text>
+          <text x="24" y="74" class="small">Manage students</text>
+          <text x="24" y="102" class="small">Review docs</text>
+          <text x="24" y="130" class="small">Audit log</text>
+        </g>
+        <g transform="translate(610 56)">
+          <rect width="250" height="160" rx="22" fill="#e8f5ed" stroke="#cfe4d7"/>
+          <text x="24" y="38" class="label" fill="#173a2c">Super Admin</text>
+          <text x="24" y="74" class="small">School ranking</text>
+          <text x="24" y="102" class="small">Admin accounts</text>
+          <text x="24" y="130" class="small">Compliance</text>
+        </g>
+        <g transform="translate(900 56)">
+          <rect width="380" height="160" rx="22" fill="#e8f5ed" stroke="#cfe4d7"/>
+          <text x="24" y="38" class="label" fill="#173a2c">Verification Services</text>
+          <text x="24" y="74" class="small">QR token generation</text>
+          <text x="24" y="102" class="small">Public verification</text>
+          <text x="24" y="130" class="small">Scan logging and analytics</text>
+        </g>
+      </g>
+
+      <!-- data layer -->
+      <g transform="translate(64 480)">
+        <text x="0" y="0" class="h2">Data Layer</text>
+        <rect x="0" y="24" width="1344" height="122" rx="24" fill="#f8fcfa" stroke="#dbe8e0"/>
+        <g transform="translate(34 56)">
+          <rect width="236" height="56" rx="16" fill="#ffffff" stroke="#d8e8df"/>
+          <text x="20" y="35" class="item">students</text>
+        </g>
+        <g transform="translate(294 56)">
+          <rect width="236" height="56" rx="16" fill="#ffffff" stroke="#d8e8df"/>
+          <text x="20" y="35" class="item">uploaded_documents</text>
+        </g>
+        <g transform="translate(554 56)">
+          <rect width="190" height="56" rx="16" fill="#ffffff" stroke="#d8e8df"/>
+          <text x="20" y="35" class="item">audit_log</text>
+        </g>
+        <g transform="translate(768 56)">
+          <rect width="220" height="56" rx="16" fill="#ffffff" stroke="#d8e8df"/>
+          <text x="20" y="35" class="item">verification_scans</text>
+        </g>
+        <g transform="translate(1012 56)">
+          <rect width="186" height="56" rx="16" fill="#ffffff" stroke="#d8e8df"/>
+          <text x="20" y="35" class="item">login_logs</text>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

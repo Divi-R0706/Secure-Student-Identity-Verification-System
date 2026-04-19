@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block page %}
+<div class="app-layout">
+    <aside class="sidebar" id="dashboardSidebar">
+        <div class="sidebar-brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="IDENZA">
+            <span>IDENZA</span>
+        </div>
+        <nav class="sidebar-nav">
+            {% for link in sidebar_links %}
+            <a class="sidebar-link {{ 'active' if active_endpoint == link.endpoint else '' }}" href="{{ url_for(link.endpoint) }}">
+                <span class="sidebar-link-icon" aria-hidden="true">
+                    {% if link.endpoint == 'student_dashboard' or link.endpoint == 'school_admin_dashboard' or link.endpoint == 'super_admin_dashboard' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                    {% elif link.endpoint == 'student_upload' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="16 16 12 12 8 16"/>
+                        <line x1="12" y1="12" x2="12" y2="21"/>
+                        <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                    </svg>
+                    {% elif link.endpoint == 'student_tasks' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="8" y1="6" x2="21" y2="6"/>
+                        <line x1="8" y1="12" x2="21" y2="12"/>
+                        <line x1="8" y1="18" x2="21" y2="18"/>
+                        <polyline points="3 6 4 7 6 5"/>
+                        <polyline points="3 12 4 13 6 11"/>
+                        <polyline points="3 18 4 19 6 17"/>
+                    </svg>
+                    {% elif link.endpoint == 'student_portals' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    {% elif link.endpoint == 'manage_students' %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    {% elif 'Admin' in link.label or 'School' in link.label %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    {% else %}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="7" height="7"/>
+                        <rect x="14" y="3" width="7" height="7"/>
+                        <rect x="3" y="14" width="7" height="7"/>
+                        <rect x="14" y="14" width="7" height="7"/>
+                    </svg>
+                    {% endif %}
+                </span>
+                <span class="sidebar-link-label">{{ link.label }}</span>
+            </a>
+            {% endfor %}
+        </nav>
+    </aside>
+
+    <header class="app-topbar">
+        <div class="app-topbar-brand">
+            <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+            <div class="topbar-context">
+                {% for link in sidebar_links %}
+                    {% if active_endpoint == link.endpoint %}
+                    <span>{{ link.label }}</span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="app-topbar-actions">
+            {% if session.get('role') == 'student' %}
+            <div class="topbar-bell" aria-label="Notifications">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
+                    <path d="M10 17a2 2 0 0 0 4 0"></path>
+                </svg>
+                {% if topbar_notification_count|default(0) %}
+                <span class="topbar-badge">{{ topbar_notification_count|default(0) }}</span>
+                {% endif %}
+            </div>
+            <span class="topbar-id">{{ topbar_identifier|default(student.student_id if student is defined else '') }}</span>
+            {% elif session.get('role') == 'admin' %}
+            <span class="topbar-role">School Admin</span>
+            {% elif session.get('role') == 'superadmin' %}
+            <span class="topbar-role">Super Admin</span>
+            {% endif %}
+            <a class="topbar-logout" href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </header>
+
+    <div class="app-shell">
+        <main class="content-area">
+            <div class="page-content-wrap">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <nav class="mobile-bottom-nav" aria-label="Bottom navigation">
+        {% for link in sidebar_links %}
+        <a class="mobile-nav-link {{ 'active' if active_endpoint == link.endpoint else '' }}" href="{{ url_for(link.endpoint) }}">{{ link.label }}</a>
+        {% endfor %}
+    </nav>
+</div>
+
+<script>
+const sidebarToggle = document.getElementById("sidebarToggle");
+const dashboardSidebar = document.getElementById("dashboardSidebar");
+sidebarToggle?.addEventListener("click", () => {
+    dashboardSidebar?.classList.toggle("open");
+});
+</script>
+{% endblock %}

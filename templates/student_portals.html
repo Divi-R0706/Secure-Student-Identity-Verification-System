@@ -1,0 +1,31 @@
+﻿{% extends "base_dashboard.html" %}
+{% block content %}
+<div class="portal-grid">
+    {% for portal in portals %}
+    <article class="card portal-card">
+        <div class="portal-tag">{{ _(portal.tag) }}</div>
+        <div class="portal-card-head">
+            <div class="portal-logo-wrap">
+                {% if portal.title == "DIKSHA" %}
+                <img src="{{ url_for('static', filename='diksha.png') }}" alt="{{ _(portal.title) }}">
+                {% elif portal.title == "SWAYAM" %}
+                <img src="{{ url_for('static', filename='swayam.png') }}" alt="{{ _(portal.title) }}">
+                {% elif portal.title == "National Scholarship Portal" %}
+                <img src="{{ url_for('static', filename='nsp.jpg') }}" alt="{{ _(portal.title) }}">
+                {% elif portal.title == "National Career Service" %}
+                <img src="{{ url_for('static', filename='ncp.jpg') }}" alt="{{ _(portal.title) }}">
+                {% else %}
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="{{ portal.title }}">
+                {% endif %}
+            </div>
+            <div class="portal-copy">
+                <h2 class="portal-title">{{ _(portal.title) }}</h2>
+                <p class="portal-description">{{ _(portal.description) }}</p>
+            </div>
+        </div>
+        <a class="primary-btn portal-open-btn" href="{{ portal.url }}" target="_blank" rel="noopener noreferrer">{{ _("Open Portal") }}</a>
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}
+

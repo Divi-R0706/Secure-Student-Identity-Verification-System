@@ -1,0 +1,95 @@
+{% extends "base_public.html" %}
+{% block content %}
+{% if qr_expired %}
+<div class="public-verify-shell">
+    <article class="public-verify-card">
+        <div class="alert alert-danger m-4 mb-0">
+            {{ _("This verification link has expired. Please request a new one from your school.") }}
+        </div>
+    </article>
+</div>
+{% else %}
+{% set verification_status = effective_verification_status(student) %}
+<div class="public-verify-shell">
+    <article class="public-verify-card">
+        <div class="public-verify-topbar">
+            <div class="public-verify-brand">
+                <img class="brand-logo-image public-logo-image" src="{{ url_for('static', filename='logo.png') }}" alt="IDENZA logo">
+                <div class="public-verify-brand-copy">
+                    <div class="public-verify-title">IDENZA</div>
+                    <div class="public-verify-subtitle-text">{{ _("Identity Verification") }}</div>
+                </div>
+            </div>
+            <span class="public-status-badge {{ verification_status|lower }}">{{ _(verification_status) }}</span>
+        </div>
+
+        <div class="public-verify-content">
+            <div class="public-verify-hero">
+                <div class="alert {% if verification_status|lower == 'verified' %}alert-success{% elif verification_status|lower == 'rejected' %}alert-danger{% else %}alert-warning{% endif %} fs-5 fw-semibold mb-4">
+                    {% if verification_status|lower == 'verified' %}
+                    {{ _("This identity has been verified by IDENZA.") }}
+                    {% elif verification_status|lower == 'rejected' %}
+                    {{ _("This identity record is currently marked as rejected in IDENZA.") }}
+                    {% else %}
+                    {{ _("This identity is currently pending confirmation in IDENZA.") }}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="public-verify-body">
+                <div class="public-verify-profile">
+                    <div class="public-avatar">{{ display_avatar_initial(student.name) }}</div>
+                    <div class="public-verify-heading">
+                        <h1>{{ display_student_name(student.name) }}</h1>
+                        <p>{{ _("Student identity details for secure verification.") }}</p>
+                    </div>
+                </div>
+
+                <div class="public-verify-grid">
+                    <div class="public-verify-item"><span>{{ _("Student Name") }}</span><strong>{{ display_student_name(student.name) }}</strong></div>
+                    <div class="public-verify-item"><span>{{ _("Student ID") }}</span><strong>{{ student.student_id }}</strong></div>
+                    <div class="public-verify-item"><span>{{ _("EMIS ID") }}</span><strong>{{ student.emis_id }}</strong></div>
+                    <div class="public-verify-item"><span>{{ _("School") }}</span><strong>{{ _(student.school_info) }}</strong></div>
+                    <div class="public-verify-item"><span>{{ _("Class") }}</span><strong>{{ format_class_display(student.class_name) }}</strong></div>
+                    <div class="public-verify-item"><span>{{ _("Status") }}</span><strong>{{ _(verification_status) }}</strong></div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <h3 class="h5 mb-3">{{ _("Verified documents") }}</h3>
+                        {% if verified_documents %}
+                        <ul class="mb-0">
+                            {% for doc in verified_documents %}
+                            <li>{{ _(doc.document_type) }} - {{ _("Verified") }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="mb-0 text-muted">{{ _("No verified documents available.") }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="public-verify-meta">
+                    <div>
+                        <strong>{{ _("Verification URL") }}</strong>
+                        <span>{{ public_verify_url }}</span>
+                    </div>
+                    <div>
+                        <strong>{{ _("Verification Time") }}</strong>
+                        <span>{{ verification_timestamp or '-' }}</span>
+                    </div>
+                    <div>
+                        <strong>{{ _("QR scans") }}</strong>
+                        <span>{{ verification_scan_count }}</span>
+                    </div>
+                    <div>
+                        <strong>{{ _("Verified by") }}</strong>
+                        <span>{{ display_student_name(verified_by_admin_name) if verified_by_admin_name else '-' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </article>
+</div>
+{% endif %}
+{% endblock %}

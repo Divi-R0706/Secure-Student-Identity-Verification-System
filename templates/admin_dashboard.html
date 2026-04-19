@@ -1,0 +1,72 @@
+﻿{% extends "base_dashboard.html" %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>{{ _("School Admin Dashboard") }}</h1>
+        <div class="page-subtitle">{{ _("School Admin only |") }} {{ _(admin.school_name) }}</div>
+    </div>
+</section>
+
+<div class="dashboard-stats-grid">
+    <article class="admin-stat-card card">
+        <div class="admin-stat-copy">
+            <div class="stat-card-label">{{ _("Total Students") }}</div>
+            <div class="admin-stat-row">
+                <div class="stat-card-value">{{ total_students }}</div>
+                <div class="stat-icon" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            </div>
+        </div>
+    </article>
+</div>
+
+<article class="card card-spaced">
+    <div class="section-header">
+        <div>
+            <h2>{{ _("Class-wise Distribution") }}</h2>
+            <div class="page-subtitle">{{ _("All classes from 1-A to 12-B with current student counts.") }}</div>
+        </div>
+    </div>
+    <div class="class-grid">
+        {% for class_item in classes %}
+        <div class="class-chip">
+            <span>{{ format_class_display(class_item.label) }}</span>
+            <span>{{ class_item.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</article>
+
+<article class="card card-spaced">
+    <div class="section-header">
+        <div>
+            <h2>{{ _("Recent verification scans") }}</h2>
+            <div class="page-subtitle">{{ _("Last 24 hours QR verification visits for this school.") }}</div>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="table table-striped align-middle">
+            <thead><tr><th>{{ _("Student Name") }}</th><th>{{ _("Student ID") }}</th><th>{{ _("Viewer Role") }}</th><th>{{ _("Scanned At") }}</th><th>IP</th></tr></thead>
+            <tbody>
+                {% if recent_scans %}
+                    {% for scan in recent_scans %}
+                    <tr>
+                        <td>{{ display_student_name(scan.student_name) }}</td>
+                        <td>{{ scan.student_id }}</td>
+                        <td>
+                            {% set viewer_role = (scan.viewer_role or 'unknown')|lower %}
+                            <span class="badge {% if viewer_role == 'admin' %}bg-primary{% elif viewer_role == 'student' %}bg-secondary{% elif viewer_role == 'superadmin' %}bg-dark{% else %}bg-light text-dark{% endif %}">
+                                {{ scan.viewer_role or 'unknown' }}
+                            </span>
+                        </td>
+                        <td>{{ scan.scanned_at|datetime }}</td>
+                        <td>{{ scan.ip_address or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="5">{{ _("No scans recorded yet.") }}</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</article>
+{% endblock %}

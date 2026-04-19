@@ -1,0 +1,212 @@
+﻿{% extends "base_dashboard.html" %}
+{% block content %}
+<div class="upload-layout">
+    <article class="card upload-card-wide">
+        <div class="section-header">
+            <div>
+                <h2>{{ _("Upload Document") }}</h2>
+                <div class="page-subtitle">{{ _("Choose a document type, attach a file, and send it for verification.") }}</div>
+            </div>
+        </div>
+        {% if rejected_documents %}
+        <div class="alert alert-warning d-flex justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <strong>{{ _("Document rejected") }}</strong>
+                <span>{{ _("Rejected documents need correction and re-upload.") }}</span>
+            </div>
+        </div>
+        {% endif %}
+        <form method="post" enctype="multipart/form-data" id="uploadForm">
+            <div class="field">
+                <label class="form-label">{{ _("Document Types") }}</label>
+                <div class="doc-type-grid" role="radiogroup" aria-label="Document type selector">
+                    <label class="doc-type-card active" data-document-type="ID Card"><input type="radio" checked><span class="doc-type-title">{{ _("ID Card")|upper }}</span><span class="doc-type-copy">{{ _("School issued identity card") }}</span></label>
+                    <label class="doc-type-card" data-document-type="Birth Certificate"><input type="radio"><span class="doc-type-title">{{ _("Birth Certificate")|upper }}</span><span class="doc-type-copy">{{ _("Proof of date of birth") }}</span></label>
+                    <label class="doc-type-card" data-document-type="Aadhaar"><input type="radio"><span class="doc-type-title">{{ _("Aadhaar")|upper }}</span><span class="doc-type-copy">{{ _("Government identity reference") }}</span></label>
+                    <label class="doc-type-card" data-document-type="Transfer Certificate"><input type="radio"><span class="doc-type-title">{{ _("Transfer Certificate")|upper }}</span><span class="doc-type-copy">{{ _("Previous institution transfer proof") }}</span></label>
+                    <label class="doc-type-card" data-document-type="Community Certificate"><input type="radio"><span class="doc-type-title">{{ _("Community Certificate")|upper }}</span><span class="doc-type-copy">{{ _("Reserved category supporting record") }}</span></label>
+                    <label class="doc-type-card" data-document-type="Bank Passbook"><input type="radio"><span class="doc-type-title">{{ _("Bank Passbook")|upper }}</span><span class="doc-type-copy">{{ _("Bank account holder details") }}</span></label>
+                    <label class="doc-type-card" data-document-type="Medical Fitness Certificate"><input type="radio"><span class="doc-type-title">{{ _("Medical Fitness Certificate")|upper }}</span><span class="doc-type-copy">{{ _("Doctor certified medical fitness proof") }}</span></label>
+                </div>
+                <input id="documentTypeInput" type="hidden" name="document_type" value="ID Card" required>
+            </div>
+            <div class="field">
+                <label class="form-label">{{ _("Choose File") }}</label>
+                <div class="drop-zone">
+                    <div class="drop-zone-icon" aria-hidden="true">
+                        <svg viewBox="0 0 64 64" fill="none">
+                            <path d="M20 49h24c7.2 0 13-5.6 13-12.5 0-6.5-5.1-11.8-11.7-12.4C43.6 16.9 37.7 12 30.7 12c-8.1 0-14.8 6.4-15.1 14.4C9.5 27.4 5 32.4 5 38.6 5 44.3 9.8 49 15.7 49H20Z" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M32 41V24" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+                            <path d="M25.5 30.5 32 24l6.5 6.5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <div class="drop-zone-copy">{{ _("Drag & Drop Your Files Here") }}</div>
+                    <div class="drop-zone-divider">{{ _("Or") }}</div>
+                    <div class="file-input-row">
+                        <label class="file-input-label" for="documentUpload">{{ _("Browse Files") }}</label>
+                        <span class="file-input-name" id="fileInputName"></span>
+                    </div>
+                    <input id="documentUpload" class="input file-input" type="file" name="document" required>
+                    <p class="hint upload-helper">{{ _("Maximum size: 100MB") }}</p>
+                </div>
+            </div>
+            <div class="field">
+                <label class="form-label">{{ _("Upload Progress") }}</label>
+                <div class="progress-track"><div id="uploadBar" class="progress-bar"></div></div>
+            </div>
+            <button class="primary-btn btn-primary" type="submit">{{ _("Upload Document") }}</button>
+        </form>
+    </article>
+
+    <div class="upload-summary-grid">
+        <article class="upload-summary-card card">
+            <div class="stat-card-label">{{ _("Uploaded Files") }}</div>
+            <div class="stat-card-value">{{ documents|length }}</div>
+            <div class="hint">{{ _("Documents currently stored in your profile.") }}</div>
+        </article>
+    </div>
+</div>
+
+<article class="card card-spaced">
+    <div class="section-header">
+        <div>
+            <h2>{{ _("Uploaded Files") }}</h2>
+            <div class="page-subtitle">{{ _("All uploaded student documents displayed in a consistent table format.") }}</div>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="table table-striped align-middle">
+            <thead><tr><th>{{ _("Document Type") }}</th><th>{{ _("File Name") }}</th><th>{{ _("Status") }}</th><th>{{ _("File integrity") }}</th><th>{{ _("Size") }}</th><th>{{ _("Uploaded At") }}</th><th>{{ _("Action") }}</th></tr></thead>
+            <tbody>
+                {% if documents %}
+                    {% for doc in documents %}
+                    <tr>
+                        <td><span class="file-type-badge">{{ (doc.document_type or 'NA')[:2]|upper }}</span> {{ _(doc.document_type or 'Unknown Document') }}</td>
+                        <td>{{ doc.file_name }}</td>
+                        <td>
+                            <span class="badge {% if (doc.doc_status or 'Pending')|lower == 'verified' %}bg-success{% elif (doc.doc_status or 'Pending')|lower == 'rejected' %}bg-danger{% else %}bg-warning text-dark{% endif %}">
+                                {{ _(doc.doc_status or 'Pending') }}
+                            </span>
+                            {% if doc.doc_rejection_reason %}
+                            <div class="small text-danger mt-1">{{ doc.doc_rejection_reason }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {{ 'bg-success' if doc.integrity_ok else 'bg-danger' }}">
+                                {{ _("File integrity") }}: {{ _("Verified") if doc.integrity_ok else _("Tampered") }}
+                            </span>
+                        </td>
+                        <td>{{ doc.file_size|filesize }}</td>
+                        <td>{{ doc.uploaded_at|datetime }}</td>
+                        <td class="doc-actions-cell">
+                            <div class="doc-actions">
+                                <a class="outline-btn" href="{{ url_for('download_document', doc_id=doc.id) }}">{{ _("Download") }}</a>
+                                <form method="post" action="{{ url_for('delete_document', doc_id=doc.id) }}" class="inline-form"><button class="btn-icon btn-trash" type="submit" title="Delete" aria-label="Delete"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button></form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="7">{{ _("No documents uploaded yet.") }}</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</article>
+
+<script>
+document.querySelectorAll('.doc-type-card').forEach((card) => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.doc-type-card').forEach((item) => item.classList.remove('active'));
+        card.classList.add('active');
+        const input = document.getElementById('documentTypeInput');
+        if (input) input.value = card.dataset.documentType || '';
+    });
+});
+
+document.getElementById('documentUpload')?.addEventListener('change', (event) => {
+    const fileName = event.target.files && event.target.files[0] ? event.target.files[0].name : '';
+    const nameEl = document.getElementById('fileInputName');
+    if (nameEl) nameEl.textContent = fileName;
+});
+
+(() => {
+    const dropZone = document.querySelector('.drop-zone');
+    const fileInput = document.getElementById('documentUpload');
+    const nameEl = document.getElementById('fileInputName');
+    const uploadForm = document.getElementById('uploadForm');
+    if (!dropZone || !fileInput) return;
+
+    const setFileName = (file) => {
+        if (nameEl) nameEl.textContent = file ? file.name : '';
+    };
+
+    const stopDefaults = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+    };
+
+    ['dragenter', 'dragover'].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (event) => {
+            stopDefaults(event);
+            dropZone.classList.add('drag-over');
+        });
+    });
+
+    ['dragleave', 'dragend'].forEach((eventName) => {
+        dropZone.addEventListener(eventName, (event) => {
+            stopDefaults(event);
+            dropZone.classList.remove('drag-over');
+        });
+    });
+
+    dropZone.addEventListener('drop', (event) => {
+        stopDefaults(event);
+        dropZone.classList.remove('drag-over');
+        const droppedFiles = event.dataTransfer?.files;
+        if (!droppedFiles || !droppedFiles.length) return;
+        dropZone.__droppedFile = droppedFiles[0];
+        try {
+            const transfer = new DataTransfer();
+            transfer.items.add(droppedFiles[0]);
+            fileInput.files = transfer.files;
+        } catch (error) {
+            fileInput.files = droppedFiles;
+        }
+        setFileName(droppedFiles[0]);
+        fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    document.addEventListener('dragover', (event) => {
+        event.preventDefault();
+    });
+    document.addEventListener('drop', (event) => {
+        if (!dropZone.contains(event.target)) {
+            event.preventDefault();
+        }
+    });
+
+    uploadForm?.addEventListener('submit', (event) => {
+        if (fileInput.files && fileInput.files.length > 0) return;
+        const firstDropped = dropZone.__droppedFile;
+        if (!firstDropped) return;
+        try {
+            const transfer = new DataTransfer();
+            transfer.items.add(firstDropped);
+            fileInput.files = transfer.files;
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch (error) {
+            // fallback: keep default validation behavior
+        }
+    });
+})();
+
+document.getElementById('uploadForm')?.addEventListener('submit', () => {
+    const bar = document.getElementById('uploadBar');
+    if (!bar) return;
+    bar.style.width = '35%';
+    setTimeout(() => { bar.style.width = '68%'; }, 120);
+    setTimeout(() => { bar.style.width = '100%'; }, 280);
+});
+</script>
+{% endblock %}

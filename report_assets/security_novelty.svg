@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5fbf8"/>
+      <stop offset="100%" stop-color="#eef7f1"/>
+    </linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1b8d57"/>
+      <stop offset="100%" stop-color="#0f6c42"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#234735" flood-opacity="0.12"/>
+    </filter>
+    <style>
+      .h1{font:800 48px "Segoe UI",Arial,sans-serif;fill:#163b2b}
+      .p{font:400 20px "Segoe UI",Arial,sans-serif;fill:#5d7569}
+      .card{fill:#ffffff;stroke:#dbe8e0}
+      .t{font:700 22px "Segoe UI",Arial,sans-serif;fill:#163b2b}
+      .d{font:400 18px "Segoe UI",Arial,sans-serif;fill:#5d7569}
+      .k{font:800 18px "Segoe UI",Arial,sans-serif;fill:#1b8d57}
+      .b{font:600 16px "Segoe UI",Arial,sans-serif;fill:#ffffff}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <g transform="translate(64 52)">
+    <text x="0" y="56" class="h1">Security Features and Novelty</text>
+    <text x="0" y="92" class="p">The project adds stronger verification controls, traceability, and usability improvements beyond basic CRUD records.</text>
+
+    <g transform="translate(0 160)">
+      <rect width="1472" height="620" rx="30" fill="#ffffff" filter="url(#shadow)"/>
+      <g transform="translate(48 54)">
+        <rect width="432" height="220" rx="26" class="card"/>
+        <circle cx="68" cy="68" r="32" fill="#e4f4ea"/>
+        <text x="68" y="76" text-anchor="middle" class="k">01</text>
+        <text x="122" y="62" class="t">SHA-256 tamper detection</text>
+        <text x="122" y="98" class="d">Detects file changes after upload.</text>
+        <rect x="24" y="144" width="162" height="38" rx="19" fill="url(#g)"/>
+        <text x="105" y="169" text-anchor="middle" class="b">File Integrity</text>
+      </g>
+      <g transform="translate(500 54)">
+        <rect width="432" height="220" rx="26" class="card"/>
+        <circle cx="68" cy="68" r="32" fill="#e4f4ea"/>
+        <text x="68" y="76" text-anchor="middle" class="k">02</text>
+        <text x="122" y="62" class="t">Time-limited QR tokens</text>
+        <text x="122" y="98" class="d">Public verification links expire safely.</text>
+        <rect x="24" y="144" width="178" height="38" rx="19" fill="url(#g)"/>
+        <text x="113" y="169" text-anchor="middle" class="b">Expiring Links</text>
+      </g>
+      <g transform="translate(952 54)">
+        <rect width="472" height="220" rx="26" class="card"/>
+        <circle cx="68" cy="68" r="32" fill="#e4f4ea"/>
+        <text x="68" y="76" text-anchor="middle" class="k">03</text>
+        <text x="122" y="62" class="t">Audit trail and scan logs</text>
+        <text x="122" y="98" class="d">Tracks who viewed and who verified.</text>
+        <rect x="24" y="144" width="178" height="38" rx="19" fill="url(#g)"/>
+        <text x="113" y="169" text-anchor="middle" class="b">Traceability</text>
+      </g>
+
+      <g transform="translate(48 308)">
+        <rect width="432" height="220" rx="26" class="card"/>
+        <circle cx="68" cy="68" r="32" fill="#e4f4ea"/>
+        <text x="68" y="76" text-anchor="middle" class="k">04</text>
+        <text x="122" y="62" class="t">Login lockout protection</text>
+        <text x="122" y="98" class="d">Slows brute-force attempts.</text>
+        <rect x="24" y="144" width="176" height="38" rx="19" fill="url(#g)"/>
+        <text x="112" y="169" text-anchor="middle" class="b">Access Control</text>
+      </g>
+      <g transform="translate(500 308)">
+        <rect width="432" height="220" rx="26" class="card"/>
+        <circle cx="68" cy="68" r="32" fill="#e4f4ea"/>
+        <text x="68" y="76" text-anchor="middle" class="k">05</text>
+        <text x="122" y="62" class="t">Role-based multi-portal UI</text>
+        <text x="122" y="98" class="d">Different dashboards for each user type.</text>
+        <rect x="24" y="144" width="148" height="38" rx="19" fill="url(#g)"/>
+        <text x="98" y="169" text-anchor="middle" class="b">3 Roles</text>
+      </g>
+      <g transform="translate(952 308)">
+        <rect width="472" height="220" rx="26" class="card"/>
+        <circle cx="68" cy="68" r="32" fill="#e4f4ea"/>
+        <text x="68" y="76" text-anchor="middle" class="k">06</text>
+        <text x="122" y="62" class="t">Multilingual interface</text>
+        <text x="122" y="98" class="d">English, Hindi, and Tamil support.</text>
+        <rect x="24" y="144" width="158" height="38" rx="19" fill="url(#g)"/>
+        <text x="103" y="169" text-anchor="middle" class="b">Accessibility</text>
+      </g>
+    </g>
+  </g>
+</svg>

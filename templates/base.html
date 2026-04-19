@@ -1,0 +1,862 @@
+﻿<!DOCTYPE html>
+<html lang="{{ current_language.code if current_language is defined else 'en' }}" translate="no" class="notranslate">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google" content="notranslate">
+    <title>{{ title or "IDENZA" }}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='logo.png') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body translate="no" class="notranslate page-loading" data-role="{{ session.get('role', '') }}" data-student-login-url="{{ url_for('student_login') }}" data-admin-login-url="{{ url_for('admin_login') }}" data-superadmin-login-url="{{ url_for('superadmin_login') }}">
+    <div class="page-loader-overlay" id="pageLoader" aria-hidden="true">
+        <div class="page-loader-card">
+            <div class="page-loader-spinner"></div>
+        </div>
+    </div>
+    {% if sidebar_links is defined %}
+    {% set current_link = namespace(label='Dashboard') %}
+    {% for link in sidebar_links|default([]) %}
+        {% if active_endpoint|default('') == link.endpoint %}
+            {% set current_link.label = link.label %}
+        {% endif %}
+    {% endfor %}
+    <div class="app-layout">
+        <aside class="sidebar" id="dashboardSidebar">
+            <div class="sidebar-brand">
+                <img class="brand-logo-image sidebar-logo-image" src="{{ url_for('static', filename='logo.png') }}" alt="IDENZA logo">
+                <div>
+                    <div class="brand-wordmark">IDENZA</div>
+                    <div class="sidebar-caption">{{ _("Secure student verification") }}</div>
+                </div>
+            </div>
+            <nav class="sidebar-nav" aria-label="Primary navigation">
+                {% for link in sidebar_links|default([]) %}
+                <a class="sidebar-link {{ 'active' if active_endpoint|default('') == link.endpoint else '' }}" href="{{ url_for(link.endpoint) }}">
+                    <span class="sidebar-link-icon" aria-hidden="true">
+                        {% if link.endpoint in ['student_dashboard', 'school_admin_dashboard', 'superadmin_dashboard'] %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        {% elif link.endpoint == 'student_upload' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        {% elif link.endpoint == 'student_tasks' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        {% elif link.endpoint == 'student_portals' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        {% elif link.endpoint == 'manage_students' %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        {% else %}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                        {% endif %}
+                    </span>
+                    <span>{{ link.label }}</span>
+                </a>
+                {% endfor %}
+            </nav>
+        </aside>
+
+        <div class="mobile-sidebar-backdrop" id="mobileSidebarBackdrop" onclick="closeSidebar()"></div>
+
+        <header class="app-topbar">
+            <div class="topbar-left">
+                <button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Toggle navigation">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+                </button>
+                <div class="topbar-brand">
+                    <img class="brand-logo-image topbar-logo-image" src="{{ url_for('static', filename='logo.png') }}" alt="IDENZA logo">
+                    <div class="topbar-brand-copy">
+                        <div class="topbar-brand-title">IDENZA</div>
+                        <div class="topbar-brand-subtitle">{{ _("Secure student verification") }}</div>
+                    </div>
+                </div>
+                <div class="topbar-meta">
+                    <div class="topbar-page-label">{{ current_link.label }}</div>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <form class="language-form language-form-topbar" method="post" action="{{ url_for('set_language') }}">
+                    <input type="hidden" name="next_url" value="{{ request.full_path if request.query_string else request.path }}">
+                    <label class="language-select-wrap" for="languageSelectTopbar">
+                        <button type="button" class="language-chip-trigger" onclick="openLanguageSelect('languageSelectTopbar')" aria-label="{{ _('Change language') }}">
+                            <span class="language-chip-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="9"></circle>
+                                <path d="M3 12h18"></path>
+                                <path d="M12 3a15 15 0 0 1 0 18"></path>
+                                <path d="M12 3a15 15 0 0 0 0 18"></path>
+                            </svg>
+                            </span>
+                        </button>
+                        <select id="languageSelectTopbar" class="language-select" name="language" onchange="this.form.submit()">
+                            {% for item in language_options %}
+                            <option value="{{ item.code }}" {{ 'selected' if item.code == current_language.code else '' }}>{{ item.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </form>
+                {% if session.get('role') in ['student', 'admin'] %}
+                <button class="bell-btn" type="button" onclick="toggleNotifPanel()" aria-label="{{ _('Notifications') }}">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    {% if notification_count|default(overdue_count|default(0)) > 0 %}<span class="notif-badge">{{ notification_count|default(overdue_count|default(0)) }}</span>{% endif %}
+                </button>
+                {% endif %}
+                {% if student is defined %}
+                <span class="topbar-user-pill">{{ student.student_id }}</span>
+                {% elif admin is defined %}
+                <span class="topbar-user-pill">{{ display_student_name(admin.name) }}</span>
+                {% elif session.get('role') == 'student' %}
+                <span class="topbar-user-pill">{{ _("Student") }}</span>
+                {% elif session.get('role') == 'superadmin' %}
+                <span class="topbar-user-pill">{{ _("Super Admin") }}</span>
+                {% endif %}
+                <a class="topbar-logout" href="{{ url_for('logout') }}">{{ _("Logout") }}</a>
+            </div>
+        </header>
+
+        <main class="app-shell">
+            <div class="content-area">
+                {% if session.get('role') %}
+                <div id="sessionExpiryBanner" class="alert alert-warning alert-dismissible fade show d-none" role="alert">
+                    {{ _("Your session will expire in 2 minutes") }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+
+        {% if session.get('role') in ['student', 'admin'] %}
+        <div class="notif-panel" id="notifPanel">
+            <div class="notif-panel-header">
+                <div>
+                    <div class="notif-panel-title">{{ _("Notifications") }}</div>
+                    <div class="notif-panel-subtitle">{{ _("Student alerts") if session.get('role') == 'student' else _("Admin alerts") }}</div>
+                </div>
+                <button class="notif-close" type="button" onclick="toggleNotifPanel()" aria-label="Close notifications">×</button>
+            </div>
+            <div class="notif-panel-body">
+                {% if session.get('role') == 'student' and student_notifications|default(overdue_tasks|default([])) %}
+                    {% for item in student_notifications|default(overdue_tasks|default([])) %}
+                    <div class="notif-item {{ 'overdue' if item.kind == 'overdue' else 'warning' }}">
+                        <div>
+                            <div class="notif-title">
+                                {% if item.kind == 'document_rejected' %}
+                                    {% set rejected_label = _("Document rejected") %}
+                                    {% set rejected_title = _(item.title) %}
+                                    {{ rejected_label }}{% if rejected_title and rejected_title != rejected_label %}: {{ rejected_title }}{% endif %}
+                                {% elif item.kind == 'document_verified' %}
+                                    {% set approved_label = _("Document approved") %}
+                                    {% set approved_title = _(item.title) %}
+                                    {{ approved_label }}{% if approved_title and approved_title != approved_label %}: {{ approved_title }}{% endif %}
+                                {% else %}
+                                    {{ display_task_title(item.title) }}
+                                {% endif %}
+                            </div>
+                            <div class="notif-time">
+                                {% if item.kind == 'document_rejected' %}
+                                    {{ _(item.message) }}
+                                {% elif item.kind == 'document_verified' %}
+                                    {{ _(item.message) }} • {{ item.time|datetime }}
+                                {% else %}
+                                    {{ _("Task overdue") }} • {{ item.time|task_datetime }}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% if item.kind in ['document_rejected', 'document_verified'] %}
+                        <a class="outline-btn" href="{{ url_for('view_student_notification', doc_id=item.doc_id) }}">{{ _("View uploads") }}</a>
+                        <form method="post" action="{{ url_for('dismiss_student_notification', doc_id=item.doc_id) }}" class="inline-form">
+                            <button class="btn-icon btn-trash" type="submit" title="{{ _('Delete') }}" aria-label="{{ _('Delete') }}">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% elif session.get('role') == 'admin' and admin_notifications|default([]) %}
+                    {% for item in admin_notifications|default([]) %}
+                    <div class="notif-item warning">
+                        <div>
+                            <div class="notif-title">{{ _("New document uploaded") }}: {{ _(item.document_type) }}</div>
+                            <div class="notif-time">{{ display_student_name(item.student_name) }} ({{ item.student_id }}) • {{ item.time|datetime }}</div>
+                        </div>
+                        <a class="outline-btn" href="{{ url_for('edit_student', student_row_id=item.student_row_id) }}">{{ _("Review Documents") }}</a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="notif-empty">{{ _("No notifications right now.") }}</div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="notif-overlay" id="notifOverlay" onclick="toggleNotifPanel()"></div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="public-language-shell">
+        <form class="language-form language-form-public" method="post" action="{{ url_for('set_language') }}">
+            <input type="hidden" name="next_url" value="{{ request.full_path if request.query_string else request.path }}">
+            <label class="language-select-wrap" for="languageSelectPublic">
+                <button type="button" class="language-chip-trigger" onclick="openLanguageSelect('languageSelectPublic')" aria-label="{{ _('Change language') }}">
+                    <span class="language-chip-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M3 12h18"></path>
+                        <path d="M12 3a15 15 0 0 1 0 18"></path>
+                        <path d="M12 3a15 15 0 0 0 0 18"></path>
+                    </svg>
+                    </span>
+                </button>
+                <select id="languageSelectPublic" class="language-select" name="language" onchange="this.form.submit()">
+                    {% for item in language_options %}
+                    <option value="{{ item.code }}" {{ 'selected' if item.code == current_language.code else '' }}>{{ item.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </form>
+    </div>
+    {% block page %}{% endblock %}
+    {% endif %}
+
+    <div class="modal fade global-popup-modal" id="globalWelcomeModal" tabindex="-1" aria-labelledby="globalWelcomeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered global-popup-dialog">
+            <div class="modal-content global-popup-card">
+                <div class="modal-header global-popup-header">
+                    <div class="global-popup-title-block">
+                        <div class="global-popup-kicker">{{ _("Welcome!") }}</div>
+                        <h2 class="modal-title" id="globalWelcomeModalLabel">{{ _("Welcome!") }}</h2>
+                    </div>
+                    <button type="button" class="btn-close global-popup-close" data-bs-dismiss="modal" aria-label="{{ _('Close') }}"></button>
+                </div>
+                <div class="modal-body global-popup-body">
+                    <p class="global-popup-message">{{ _("Explore our features.") }}</p>
+                </div>
+                <div class="modal-footer global-popup-footer">
+                    <button type="button" class="btn btn-link btn-sm text-muted global-popup-reset" id="globalPopupResetBtn">
+                        {{ _("Reset popup") }}
+                    </button>
+                    <button type="button" class="btn btn-primary global-popup-action" data-bs-dismiss="modal">
+                        {{ _("Got it") }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="deleteConfirmOverlay" aria-hidden="true">
+        <div class="modal-card confirm-delete-card">
+            <div class="confirm-delete-head">
+                <span class="confirm-delete-icon" aria-hidden="true">!</span>
+                <h2 class="confirm-delete-title">{{ _("Confirm Deletion") }}</h2>
+            </div>
+            <p class="page-subtitle confirm-delete-message" id="deleteConfirmMessage">{{ _("Are you sure you want to delete this item?") }}</p>
+            <div class="confirm-delete-actions">
+                <button class="outline-btn" type="button" id="deleteConfirmCancel">{{ _("No") }}</button>
+                <button class="danger-btn" type="button" id="deleteConfirmAccept">{{ _("Yes, Delete") }}</button>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="toast-stack">
+        {% for category, message in messages %}
+        <div class="toast {{ 'success' if category == 'success' else 'error' }}">{{ _(message) }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    window.POPUP_MANAGER_CONFIG = {{ popup_manager_config | tojson }};
+    function togglePwd(btn) {
+        const inp = btn.closest('.field-wrap').querySelector('input');
+        if (!inp) return;
+        inp.type = inp.type === 'password' ? 'text' : 'password';
+        btn.style.color = inp.type === 'text' ? '#1a6b3a' : '#9ca3af';
+    }
+    function openLanguageSelect(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        if (typeof select.showPicker === 'function') {
+            select.focus();
+            select.showPicker();
+            return;
+        }
+        select.focus();
+        select.click();
+    }
+    function initOtpGroup(scope) {
+        const root = scope || document;
+        root.querySelectorAll('.otp-group').forEach((group) => {
+            const boxes = Array.from(group.querySelectorAll('.otp-box'));
+            const hidden = group.querySelector('input[type="hidden"][name="otp"]');
+            const form = group.closest('form');
+            if (!boxes.length || !hidden || group.dataset.bound === 'true') return;
+            const syncHidden = () => { hidden.value = boxes.map((box) => box.value).join(''); };
+            boxes.forEach((box, i) => {
+                box.addEventListener('input', (e) => {
+                    e.target.value = e.target.value.replace(/\D/g, '').slice(-1);
+                    e.target.classList.toggle('filled', !!e.target.value);
+                    syncHidden();
+                    if (e.target.value && i < boxes.length - 1) boxes[i + 1].focus();
+                });
+                box.addEventListener('keydown', (e) => {
+                    if (e.key === 'Backspace' && !e.target.value && i > 0) boxes[i - 1].focus();
+                });
+                box.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6).split('');
+                    digits.forEach((digit, j) => { if (boxes[i + j]) boxes[i + j].value = digit; });
+                    syncHidden();
+                });
+            });
+            form?.addEventListener('submit', syncHidden);
+            group.dataset.bound = 'true';
+        });
+    }
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const dashboardSidebar = document.getElementById('dashboardSidebar');
+    const mobileSidebarBackdrop = document.getElementById('mobileSidebarBackdrop');
+    const notifPanel = document.getElementById('notifPanel');
+    const notifOverlay = document.getElementById('notifOverlay');
+    function closeSidebar() { dashboardSidebar?.classList.remove('open'); mobileSidebarBackdrop?.classList.remove('open'); }
+    sidebarToggle?.addEventListener('click', () => { dashboardSidebar?.classList.toggle('open'); mobileSidebarBackdrop?.classList.toggle('open'); });
+    function toggleNotifPanel() { notifPanel?.classList.toggle('open'); notifOverlay?.classList.toggle('open'); }
+    function openModalById(modalId) {
+        const overlay = document.getElementById(modalId);
+        if (!overlay) return;
+        overlay.classList.add('open');
+        overlay.style.display = 'flex';
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+    }
+    function closeModalOverlay(overlay) {
+        if (!overlay) return;
+        overlay.classList.remove('open');
+        overlay.style.display = 'none';
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+    }
+    const popupManagerConfig = window.POPUP_MANAGER_CONFIG || {};
+    const popupStoragePrefix = popupManagerConfig.storagePrefix || 'popupShown';
+    let globalPopupTimer = null;
+    let activePopupState = null;
+    function getGlobalPopupModal() {
+        return document.getElementById('globalWelcomeModal');
+    }
+    function getRoutePopupConfig(pathname) {
+        const path = pathname || window.location.pathname || '/';
+        const routes = popupManagerConfig.routes || {};
+        const entries = Object.entries(routes).sort((a, b) => b[0].length - a[0].length);
+        for (const [routeKey, config] of entries) {
+            if (routeKey === '/') continue;
+            if (path === routeKey || path.startsWith(routeKey)) {
+                return { routeKey, config };
+            }
+        }
+        if (routes['/']) {
+            return { routeKey: '/', config: routes['/'] };
+        }
+        return { routeKey: path, config: {} };
+    }
+    function getPopupStorageKey(mode, routeKey) {
+        return `${popupStoragePrefix}:${mode}:${routeKey || 'default'}`;
+    }
+    function readStorageFlag(storage, key) {
+        try {
+            return storage.getItem(key) === 'true';
+        } catch (error) {
+            return false;
+        }
+    }
+    function writeStorageFlag(storage, key) {
+        try {
+            storage.setItem(key, 'true');
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+    function removePopupStorage() {
+        const storages = [window.localStorage, window.sessionStorage];
+        storages.forEach((storage) => {
+            try {
+                const keys = [];
+                for (let i = 0; i < storage.length; i += 1) {
+                    const key = storage.key(i);
+                    if (key && key.startsWith(`${popupStoragePrefix}:`)) keys.push(key);
+                }
+                keys.forEach((key) => storage.removeItem(key));
+            } catch (error) {
+                /* ignore storage errors */
+            }
+        });
+    }
+    function setPopupModalContent(config) {
+        const title = config?.title || popupManagerConfig.title || '';
+        const message = config?.message || popupManagerConfig.message || '';
+        const kicker = document.getElementById('globalWelcomeModalKicker');
+        const titleNode = document.getElementById('globalWelcomeModalLabel');
+        const messageNode = document.getElementById('globalWelcomeModalMessage');
+        if (kicker) kicker.textContent = title;
+        if (titleNode) titleNode.textContent = title;
+        if (messageNode) messageNode.textContent = message;
+    }
+    function getActivePopupState() {
+        const resolved = getRoutePopupConfig(window.location.pathname);
+        const defaultMode = popupManagerConfig.mode || 'once';
+        const defaultDelay = Number(popupManagerConfig.delay || 60000);
+        const config = {
+            title: popupManagerConfig.title || '',
+            message: popupManagerConfig.message || '',
+            mode: defaultMode,
+            delay: Number.isFinite(defaultDelay) ? defaultDelay : 60000,
+            ...resolved.config,
+        };
+        config.mode = config.mode || 'once';
+        config.delay = Number.isFinite(Number(config.delay)) ? Number(config.delay) : 60000;
+        return { routeKey: resolved.routeKey, config };
+    }
+    function popupWasShown(mode, routeKey) {
+        if (mode === 'always') return false;
+        const key = getPopupStorageKey(mode, routeKey);
+        if (mode === 'session') {
+            return readStorageFlag(window.sessionStorage, key);
+        }
+        return readStorageFlag(window.localStorage, key);
+    }
+    function markPopupShown(mode, routeKey) {
+        if (mode === 'always') return;
+        const key = getPopupStorageKey(mode, routeKey);
+        if (mode === 'session') {
+            writeStorageFlag(window.sessionStorage, key);
+            return;
+        }
+        writeStorageFlag(window.localStorage, key);
+    }
+    function trackPopupEvent(eventType, state) {
+        const payload = {
+            event: eventType,
+            timestamp: new Date().toISOString(),
+            path: window.location.pathname,
+            route_key: state?.routeKey || '',
+            mode: state?.config?.mode || popupManagerConfig.mode || 'once',
+        };
+        console.log(`Popup ${eventType}`, payload);
+        if (!popupManagerConfig.enableTracking || !popupManagerConfig.trackEndpoint) return;
+        try {
+            fetch(popupManagerConfig.trackEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+                keepalive: true,
+                credentials: 'same-origin',
+            }).catch(() => {});
+        } catch (error) {
+            /* ignore analytics errors */
+        }
+    }
+    function scheduleGlobalWelcomePopup() {
+        if (globalPopupTimer) {
+            clearTimeout(globalPopupTimer);
+            globalPopupTimer = null;
+        }
+        const state = getActivePopupState();
+        activePopupState = state;
+        const modalElement = getGlobalPopupModal();
+        if (!modalElement || popupWasShown(state.config.mode, state.routeKey)) return;
+        setPopupModalContent(state.config);
+        globalPopupTimer = window.setTimeout(() => {
+            const currentState = getActivePopupState();
+            activePopupState = currentState;
+            if (!getGlobalPopupModal() || popupWasShown(currentState.config.mode, currentState.routeKey)) return;
+            const modalElementNow = getGlobalPopupModal();
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElementNow, {
+                backdrop: true,
+                focus: true,
+                keyboard: true,
+            });
+            modal.show();
+        }, state.config.delay);
+    }
+    function resetGlobalWelcomePopup() {
+        removePopupStorage();
+        const modalElement = getGlobalPopupModal();
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) modal.hide();
+        }
+        scheduleGlobalWelcomePopup();
+    }
+    function bindModalTriggers(root) {
+        const scope = root || document;
+        scope.querySelectorAll('[data-modal-target]').forEach((button) => {
+            if (button.dataset.modalBound === 'true') return;
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                openModalById(button.dataset.modalTarget);
+            });
+            button.dataset.modalBound = 'true';
+        });
+        scope.querySelectorAll('[data-modal-close]').forEach((button) => {
+            if (button.dataset.modalBound === 'true') return;
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                closeModalOverlay(button.closest('.modal-overlay'));
+            });
+            button.dataset.modalBound = 'true';
+        });
+        scope.querySelectorAll('.modal-overlay').forEach((overlay) => {
+            if (overlay.dataset.modalBound === 'true') return;
+            overlay.addEventListener('click', (event) => {
+                if (event.target === overlay) closeModalOverlay(overlay);
+            });
+            overlay.dataset.modalBound = 'true';
+        });
+    }
+    function bindDeleteConfirmation() {
+        const confirmOverlay = document.getElementById('deleteConfirmOverlay');
+        const confirmMessageNode = document.getElementById('deleteConfirmMessage');
+        const confirmAccept = document.getElementById('deleteConfirmAccept');
+        const confirmCancel = document.getElementById('deleteConfirmCancel');
+        if (!confirmOverlay || !confirmAccept || !confirmCancel) return;
+        const defaultMessage = {{ _('Are you sure you want to delete this item?') | tojson }};
+        let pendingForm = null;
+        let pendingSubmitter = null;
+        let pendingButton = null;
+
+        const getInlineConfirmMessage = (form) => {
+            const inline = form?.getAttribute('onsubmit') || '';
+            if (!inline.toLowerCase().includes('confirm(')) return '';
+            const singleMatch = inline.match(/confirm\('([^']+)'\)/);
+            if (singleMatch && singleMatch[1]) return singleMatch[1];
+            const doubleMatch = inline.match(/confirm\(\"([^\"]+)\"\)/);
+            if (doubleMatch && doubleMatch[1]) return doubleMatch[1];
+            return '';
+        };
+
+        const isDeleteSubmit = (form, submitter) => {
+            if (!form) return false;
+            if (form.dataset.confirmDelete === 'false') return false;
+            if (form.dataset.deleteConfirmed === '1') return false;
+            const submitterAction = String(submitter?.value || '').trim().toLowerCase();
+            const hiddenAction = String(form.querySelector('input[name=\"action\"]')?.value || '').trim().toLowerCase();
+            const formAction = String(form.getAttribute('action') || '').trim().toLowerCase();
+            return (
+                form.dataset.confirmDelete === 'true'
+                || submitter?.classList?.contains('btn-trash')
+                || submitterAction === 'delete'
+                || hiddenAction === 'delete'
+                || /\/delete(?:\/|$)/.test(formAction)
+            );
+        };
+
+        const openDeleteConfirm = (message, form, submitter) => {
+            pendingForm = form;
+            pendingSubmitter = submitter || null;
+            pendingButton = null;
+            if (confirmMessageNode) confirmMessageNode.textContent = message || defaultMessage;
+            openModalById('deleteConfirmOverlay');
+        };
+
+        const closeDeleteConfirm = () => {
+            closeModalOverlay(confirmOverlay);
+            pendingForm = null;
+            pendingSubmitter = null;
+            pendingButton = null;
+        };
+
+        document.addEventListener('submit', (event) => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            const submitter = event.submitter || null;
+            if (!isDeleteSubmit(form, submitter)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const message = (
+                submitter?.dataset?.confirmMessage
+                || form.dataset.confirmMessage
+                || getInlineConfirmMessage(form)
+                || defaultMessage
+            );
+            openDeleteConfirm(message, form, submitter);
+        }, true);
+
+        document.addEventListener('click', (event) => {
+            const button = event.target?.closest?.('button.btn-trash[type="button"]');
+            if (!button) return;
+            if (button.dataset.confirmDelete === 'false') return;
+            if (button.dataset.deleteConfirmed === '1') return;
+            event.preventDefault();
+            event.stopPropagation();
+            pendingForm = null;
+            pendingSubmitter = null;
+            pendingButton = button;
+            if (confirmMessageNode) {
+                confirmMessageNode.textContent = button.dataset.confirmMessage || defaultMessage;
+            }
+            openModalById('deleteConfirmOverlay');
+        }, true);
+
+        confirmCancel.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeDeleteConfirm();
+        });
+
+        confirmAccept.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (!pendingForm && !pendingButton) {
+                closeDeleteConfirm();
+                return;
+            }
+            if (pendingButton) {
+                const buttonToClick = pendingButton;
+                buttonToClick.dataset.deleteConfirmed = '1';
+                closeDeleteConfirm();
+                buttonToClick.click();
+                delete buttonToClick.dataset.deleteConfirmed;
+                return;
+            }
+            const formToSubmit = pendingForm;
+            const submitter = pendingSubmitter;
+            formToSubmit.dataset.deleteConfirmed = '1';
+            closeDeleteConfirm();
+            if (submitter && typeof formToSubmit.requestSubmit === 'function') {
+                formToSubmit.requestSubmit(submitter);
+            } else if (typeof formToSubmit.requestSubmit === 'function') {
+                formToSubmit.requestSubmit();
+            } else {
+                formToSubmit.submit();
+            }
+            delete formToSubmit.dataset.deleteConfirmed;
+        });
+    }
+    function initScrollAnimations(root) {
+        const scope = root || document;
+        const animatedSelectors = [
+            '.page-header',
+            '.section-header',
+            '.section-heading',
+            '.card',
+            '.portal-card',
+            '.task-card',
+            '.ranked-school-card',
+            '.stat-highlight-card',
+            '.student-stat-card',
+            '.admin-stat-card',
+            '.upload-summary-card',
+            '.public-verify-card',
+            '.meta-item',
+            '.class-chip',
+            '.table-wrap',
+            '.notif-item',
+        ];
+        const elements = scope.querySelectorAll(animatedSelectors.join(', '));
+        if (!elements.length) return;
+        const observer = 'IntersectionObserver' in window ? new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('is-visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }) : null;
+        elements.forEach((element, index) => {
+            if (element.dataset.scrollAnimated === 'true') return;
+            element.classList.add('scroll-animate');
+            element.style.setProperty('--scroll-delay', `${Math.min(index * 45, 420)}ms`);
+            element.dataset.scrollAnimated = 'true';
+            if (observer) observer.observe(element);
+            else element.classList.add('is-visible');
+        });
+    }
+    function assignReveal(selector, baseDelay = 0, step = 70, mode = 'rise') {
+        document.querySelectorAll(selector).forEach((element, index) => {
+            element.classList.add(mode === 'pop' ? 'reveal-pop' : 'reveal-on-load');
+            element.style.setProperty('--reveal-delay', `${baseDelay + (index * step)}ms`);
+        });
+    }
+    function applyGlobalStagger() {
+        const isRenderableElement = (node) => {
+            if (!(node instanceof HTMLElement)) return false;
+            if (node.matches('script, style, link, template')) return false;
+            if (node.classList.contains('page-loader-overlay')) return false;
+            return true;
+        };
+        const bindStagger = (selector, baseDelay = 120, step = 45, mode = 'rise') => {
+            document.querySelectorAll(selector).forEach((container, containerIndex) => {
+                const items = Array.from(container.children).filter(isRenderableElement);
+                items.forEach((item, itemIndex) => {
+                    if (item.dataset.staggerBound === 'true') return;
+                    if (!item.classList.contains('reveal-on-load') && !item.classList.contains('reveal-pop')) {
+                        item.classList.add(mode === 'pop' ? 'reveal-pop' : 'reveal-on-load');
+                    }
+                    const computedDelay = baseDelay + (containerIndex * 28) + (itemIndex * step);
+                    item.style.setProperty('--reveal-delay', `${Math.min(computedDelay, 900)}ms`);
+                    item.dataset.staggerBound = 'true';
+                });
+            });
+        };
+
+        bindStagger('.content-area', 90, 46, 'pop');
+        bindStagger('.card', 110, 36, 'pop');
+        bindStagger('.auth-card, .forgot-card, .public-verify-card', 95, 42, 'pop');
+        bindStagger('.table tbody', 140, 30, 'pop');
+        bindStagger('.form-grid, .task-form-grid, .student-profile-layout, .meta-grid, .public-verify-grid', 120, 34, 'pop');
+        bindStagger('.dashboard-stats-grid, .student-stats-grid, .student-bottom-grid, .portal-grid, .task-list, .upload-summary-grid, .ranked-school-grid, .class-grid, .doc-type-grid', 120, 42, 'pop');
+        bindStagger('.notif-panel-body, .modal-card, .modal-header, .modal-header-actions', 100, 30, 'pop');
+    }
+    function forceGlobalPopEntrance() {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const selectors = [
+            '.sidebar',
+            '.sidebar-brand',
+            '.sidebar-link',
+            '.app-topbar',
+            '.topbar-left > *',
+            '.topbar-right > *',
+            '.public-language-shell',
+            '.public-verify-shell > *',
+            '.auth-grid > *',
+            '.forgot-shell > *',
+            '.content-area > *',
+            '.content-area .card',
+            '.content-area .table-wrap',
+            '.content-area .task-card',
+            '.content-area .portal-card',
+            '.content-area .doc-type-card',
+            '.content-area .notif-item',
+            '.modal-card',
+            '.notif-panel'
+        ];
+        const targets = Array.from(document.querySelectorAll(selectors.join(', '))).filter((el) => el instanceof HTMLElement);
+        targets.forEach((el, index) => {
+            if (el.dataset.popEntranceBound === 'true') return;
+            el.dataset.popEntranceBound = 'true';
+            el.animate(
+                [
+                    { opacity: 0, transform: 'translateY(26px) scale(0.84)' },
+                    { opacity: 1, transform: 'translateY(-7px) scale(1.08)', offset: 0.58 },
+                    { opacity: 1, transform: 'translateY(2px) scale(0.985)', offset: 0.82 },
+                    { opacity: 1, transform: 'translateY(0) scale(1)' }
+                ],
+                {
+                    duration: 1150,
+                    delay: Math.min(index * 130, 2600),
+                    easing: 'cubic-bezier(0.16, 0.9, 0.2, 1)',
+                    fill: 'both'
+                }
+            );
+        });
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        initOtpGroup(document);
+        initScrollAnimations(document);
+        document.getElementById('globalPopupResetBtn')?.addEventListener('click', resetGlobalWelcomePopup);
+        const globalPopupModal = getGlobalPopupModal();
+        if (globalPopupModal) {
+            globalPopupModal.addEventListener('shown.bs.modal', () => {
+                const state = activePopupState || getActivePopupState();
+                markPopupShown(state.config.mode, state.routeKey);
+                trackPopupEvent('shown', state);
+            });
+            globalPopupModal.addEventListener('hidden.bs.modal', () => {
+                const state = activePopupState || getActivePopupState();
+                trackPopupEvent('closed', state);
+            });
+        }
+        assignReveal('.sidebar', 20);
+        assignReveal('.sidebar-brand', 60);
+        assignReveal('.sidebar-link', 100, 45);
+        assignReveal('.app-topbar', 70);
+        assignReveal('.topbar-brand, .topbar-meta, .topbar-right > *', 120, 55);
+        assignReveal('.language-select-wrap, .bell-btn, .topbar-user-pill, .topbar-logout', 150, 45, 'pop');
+        assignReveal('.auth-grid > *', 90, 120);
+        assignReveal('.auth-card-brand, .auth-header, .wizard-steps, .auth-card form, .auth-links', 130, 70);
+        assignReveal('.wizard-step', 160, 70);
+        assignReveal('.forgot-shell > *', 90, 120);
+        assignReveal('.public-language-shell, .public-language-shell > *', 40, 40, 'pop');
+        assignReveal('.public-verify-shell > *', 90, 120);
+        assignReveal('.public-verify-brand, .public-verify-body > *', 130, 70);
+        assignReveal('.content-area > *', 110, 90);
+        assignReveal('.page-header, .section-header', 130, 70);
+        assignReveal('.dashboard-stats-grid > *', 180, 80);
+        assignReveal('.student-stats-grid > *', 180, 80);
+        assignReveal('.student-bottom-grid > *', 220, 100);
+        assignReveal('.portal-grid > *', 180, 90);
+        assignReveal('.task-list > *', 180, 70);
+        assignReveal('.upload-summary-grid > *', 180, 90);
+        assignReveal('.class-grid > *', 180, 60);
+        assignReveal('.ranked-school-grid > *', 180, 60);
+        assignReveal('.student-identity-grid > *, .meta-grid > *, .public-verify-grid > *, .doc-type-grid > *', 210, 55);
+        assignReveal('.card, .auth-card, .public-verify-card, .portal-card, .task-card, .upload-summary-card, .ranked-school-card, .student-stat-card, .admin-stat-card, .doc-type-card, .public-verify-item, .meta-item, .class-chip, .notif-item', 180, 50);
+        assignReveal('.table-wrap', 240);
+        assignReveal('.modal-card, .notif-panel', 140);
+        assignReveal('.toast-stack .toast, .status-pill, .portal-logo-wrap, .qr-image-wrap, .id-card-qr-panel, .stat-icon', 180, 45, 'pop');
+        applyGlobalStagger();
+        bindModalTriggers(document);
+        bindDeleteConfirmation();
+        scheduleGlobalWelcomePopup();
+        requestAnimationFrame(() => {
+            document.body.classList.add('animations-ready');
+            document.body.classList.remove('page-loading');
+            document.body.classList.add('page-loaded');
+            const loader = document.getElementById('pageLoader');
+            if (loader) loader.remove();
+            // Run the global stagger after loader removal so users can actually see it.
+            setTimeout(() => {
+                forceGlobalPopEntrance();
+            }, 60);
+        });
+        document.addEventListener('click', (event) => {
+            const trigger = event.target.closest?.('[data-modal-target]');
+            if (trigger) {
+                event.preventDefault();
+                openModalById(trigger.dataset.modalTarget);
+                return;
+            }
+            const closeButton = event.target.closest?.('[data-modal-close]');
+            if (closeButton) {
+                event.preventDefault();
+                closeModalOverlay(closeButton.closest('.modal-overlay'));
+                return;
+            }
+        }, true);
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            const openOverlay = document.querySelector('.modal-overlay.open');
+            if (openOverlay) closeModalOverlay(openOverlay);
+        });
+        const toastHideDelayMs = 10000;
+        const toastFadeDurationMs = 300;
+        document.querySelectorAll('.toast-stack .toast').forEach((toast) => {
+            setTimeout(() => {
+                toast.classList.add('is-hiding');
+                setTimeout(() => { toast.remove(); }, toastFadeDurationMs);
+            }, toastHideDelayMs);
+        });
+
+        const warningBanner = document.getElementById('sessionExpiryBanner');
+        const role = document.body.dataset.role;
+        const loginMap = {
+            student: document.body.dataset.studentLoginUrl,
+            admin: document.body.dataset.adminLoginUrl,
+            superadmin: document.body.dataset.superadminLoginUrl,
+        };
+        if (role && warningBanner) {
+            const warningDelay = {{ session_warning_seconds|int * 1000 }};
+            const timeoutDelay = {{ session_timeout_seconds|int * 1000 }};
+            setTimeout(() => {
+                warningBanner.classList.remove('d-none');
+            }, warningDelay);
+            setTimeout(() => {
+                window.location.href = loginMap[role] || loginMap.student;
+            }, timeoutDelay);
+        }
+    });
+    </script>
+</body>
+</html>

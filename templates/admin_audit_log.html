@@ -1,0 +1,42 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+<section class="page-header">
+    <div>
+        <h1>{{ _("Audit Log") }}</h1>
+        <div class="page-subtitle">{{ _("Administrative change history for student records.") }}</div>
+    </div>
+</section>
+
+<article class="card">
+    <div class="table-wrap">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>{{ _("Time") }}</th>
+                    <th>{{ _("Admin") }}</th>
+                    {% if session.get('role') == 'superadmin' %}<th>{{ _("School") }}</th>{% endif %}
+                    <th>{{ _("Action") }}</th>
+                    <th>{{ _("Student") }}</th>
+                    <th>{{ _("Details") }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp|datetime }}</td>
+                        <td>{{ display_student_name(log.admin_name) }}</td>
+                        {% if session.get('role') == 'superadmin' %}<td>{{ _(log.school_name) if log.school_name is defined else '-' }}</td>{% endif %}
+                        <td>{{ _(log.action|title) }}</td>
+                        <td>{{ log.target_student_id }}</td>
+                        <td>{{ format_audit_details(log.action, log.details) }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr><td colspan="{{ 6 if session.get('role') == 'superadmin' else 5 }}">{{ _("No audit records found.") }}</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</article>
+{% endblock %}

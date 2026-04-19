@@ -1,0 +1,98 @@
+﻿{% extends "base_dashboard.html" %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+{% endblock %}
+{% block content %}
+{% set verification_status = effective_verification_status(student) %}
+<section class="page-header">
+    <div>
+        <h1>{{ _("Student Identity Card") }}</h1>
+        <div class="page-subtitle">{{ _("Printable ID card styled to match the authenticated design system.") }}</div>
+    </div>
+    <div class="page-actions">
+        <button class="primary-btn" type="button" id="downloadIdCard">{{ _("Download ID Card") }}</button>
+        <form method="post" action="{{ url_for('refresh_student_id_qr') }}" class="inline-form">
+            <button class="ghost-btn" type="submit">{{ _("Refresh QR") }}</button>
+        </form>
+        <a class="ghost-btn" href="{{ url_for('student_qr_detail') }}">{{ _("Open QR Details") }}</a>
+    </div>
+</section>
+
+<article class="id-card" id="studentIdCard">
+    <div class="id-card-header-band">
+        <div class="id-card-header-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <span>IDENZA {{ _("Student Identity Card") }}</span>
+        </div>
+        <span class="id-card-year-pill">{{ _("Academic Year") }} {{ academic_year }}</span>
+    </div>
+
+    <div class="id-card-body">
+        <div class="id-card-avatar-circle">{{ display_avatar_initial(student.name) }}</div>
+        <div class="id-card-student-info">
+            <h2>{{ display_student_name(student.name) }}</h2>
+            <div class="info-row">
+                <span class="info-label">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm0 2c-4.42 0-8 2.24-8 5v1h16v-1c0-2.76-3.58-5-8-5Z"/></svg>
+                    {{ _("Student ID") }}:
+                </span>
+                <span class="info-value">{{ student.student_id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm1 15h-2v-2h2Zm1.07-7.75-.9.92A3.49 3.49 0 0 0 12 13h-2v-.5a3.5 3.5 0 0 1 1.03-2.47l1.24-1.26a1.49 1.49 0 1 0-2.54-1.06H7.73a3.5 3.5 0 1 1 6.34 2.04Z"/></svg>
+                    {{ _("EMIS ID") }}:
+                </span>
+                <span class="info-value">{{ student.emis_id }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9Zm-7 8.18V16l7 4 7-4v-4.82l-7 3.82Z"/></svg>
+                    {{ _("Class") }}:
+                </span>
+                <span class="info-value">{{ format_class_display(student.class_name) }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 7v6c0 5 3.84 9.74 9 11 5.16-1.26 9-6 9-11V7Zm0 3.18L18 8v4.91c0 3.73-2.55 7.27-6 8.35-3.45-1.08-6-4.62-6-8.35V8Z"/></svg>
+                    {{ _("School") }}:
+                </span>
+                <span class="info-value">{{ _(student.school_info) }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v13a3 3 0 0 0 3 3h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 16H6a1 1 0 0 1-1-1V10h14Zm0-12H5V6h14Z"/></svg>
+                    {{ _("Date of Birth") }}:
+                </span>
+                <span class="info-value">{{ student.dob }}</span>
+            </div>
+            <span class="id-card-status-badge {{ verification_status|lower }}">{{ _(verification_status) }}</span>
+        </div>
+        <div class="id-card-qr-panel">
+            <img class="id-card-qr-image" src="data:image/png;base64,{{ qr_b64 }}" alt="Verification QR code" width="120" height="120">
+            <div class="id-card-qr-caption">{{ _("Scan to Verify") }}<br>{{ _("Student Identity") }}</div>
+            <div class="small mt-2 text-muted">{{ _("Expires") }}: {{ qr_expires_at|datetime }}</div>
+        </div>
+    </div>
+
+    <div class="id-card-footer-band">
+        <div class="id-card-footer-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            <span>{{ _("Digitally generated and secured by IDENZA") }}</span>
+        </div>
+        <div class="id-card-issued">{{ _("Issued") }}: {{ _("Academic Year") }} {{ academic_year }}</div>
+    </div>
+</article>
+
+<script>
+document.getElementById('downloadIdCard')?.addEventListener('click', () => {
+    html2canvas(document.querySelector('.id-card')).then((canvas) => {
+        const a = document.createElement('a');
+        a.download = 'IDENZA_ID_Card.png';
+        a.href = canvas.toDataURL();
+        a.click();
+    });
+});
+</script>
+{% endblock %}
+
