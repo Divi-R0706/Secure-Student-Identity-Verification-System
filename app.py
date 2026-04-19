@@ -2406,8 +2406,34 @@ def allowed_file(filename):
     return os.path.splitext(filename.lower())[1] in ALLOWED_EXTENSIONS
 
 
+def slugify_for_url(value):
+    text = re.sub(r"[^a-z0-9]+", "-", str(value or "").lower()).strip("-")
+    return text or "student"
+
+
 def get_public_verify_url(qr_token):
     verify_path = url_for("verify_student", qr_token=qr_token)
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT student_id, name FROM student_details WHERE qr_token = ? LIMIT 1",
+            (qr_token,),
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row and row["student_id"]:
+            student_id = re.sub(r"[^A-Za-z0-9_-]", "", str(row["student_id"]))
+            if student_id:
+                verify_path = url_for(
+                    "verify_student_named",
+                    student_id=student_id,
+                    name_slug=slugify_for_url(row["name"]),
+                    qr_token=qr_token,
+                )
+    except Exception:
+        # Keep fallback path generation resilient.
+        pass
     base_url = os.getenv("PUBLIC_BASE_URL")
     if base_url:
         return f"{base_url.rstrip('/')}{verify_path}"
@@ -3229,31 +3255,25 @@ def student_login():
             else:
                 conn.close()
                 mobile = normalize_phone_number(user["parent_mobile"])
-                sent_via_mobile = False
-                sent = False
-                if mobile:
-                    otp_identifier = mobile
-                    otp_code = create_otp_record(otp_identifier, "student_login", user["id"])
-                    sent = send_otp_sms(mobile, otp_code, "student_login")
-                    sent_via_mobile = sent
-                    if not sent and allow_logged_otp_fallback():
-                        # OTP is already logged by create_otp_record; allow verification via logs.
-                        sent = True
-                else:
-                    # Only fallback to email when no mobile is registered.
-                    otp_identifier = normalized_email
-                    otp_code = create_otp_record(otp_identifier, "student_login", user["id"])
-                    sent = send_otp_email(normalized_email, otp_code, "student_login")
-                if sent:
-                    session["student_pre_auth_user_id"] = user["id"]
-                    session["student_pre_auth_email"] = normalized_email
-                    session["student_pre_auth_otp_identifier"] = otp_identifier
-                    session["student_pre_auth_mobile"] = mobile if sent_via_mobile else ""
-                    session["student_pre_auth_identifier"] = user["student_id"]
-                    otp_step = True
-                    resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
-                else:
-                    error = "Could not send OTP to registered mobile. Please try again."
+                identifier = user["student_id"]
+                otp = str(random.randint(100000, 999999))
+                session["login_otp"] = otp
+                session["login_otp_expires"] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
+
+                print("=" * 50)
+                print("LOGIN OTP GENERATED")
+                print("Student ID:", identifier)
+                print("Generated OTP:", otp)
+                print("=" * 50)
+
+                session["student_pre_auth_user_id"] = user["id"]
+                session["student_pre_auth_email"] = normalized_email
+                session["student_pre_auth_otp_identifier"] = normalized_email
+                session["student_pre_auth_mobile"] = mobile
+                session["student_pre_auth_identifier"] = identifier
+                session["pending_student_id"] = identifier
+                otp_step = True
+                resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
 
         elif action == "resend_login_otp":
             normalized_email = session.get("student_pre_auth_email")
@@ -3264,27 +3284,21 @@ def student_login():
             if not normalized_email or not user_id or not otp_identifier:
                 error = "Session expired. Please login again."
             else:
-                sent_via_mobile = False
-                sent = False
-                if mobile:
-                    otp_identifier = mobile
-                    otp_code = create_otp_record(otp_identifier, "student_login", user_id)
-                    sent = send_otp_sms(mobile, otp_code, "student_login")
-                    sent_via_mobile = sent
-                    if not sent and allow_logged_otp_fallback():
-                        sent = True
-                else:
-                    otp_identifier = normalized_email
-                    otp_code = create_otp_record(otp_identifier, "student_login", user_id)
-                    sent = send_otp_email(normalized_email, otp_code, "student_login")
-                if sent:
-                    session["student_pre_auth_otp_identifier"] = otp_identifier
-                    session["student_pre_auth_mobile"] = mobile if sent_via_mobile else ""
-                    otp_step = True
-                    resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
-                    flash("OTP resent successfully.", "success")
-                else:
-                    error = "Could not resend OTP to registered mobile. Please try again."
+                otp = str(random.randint(100000, 999999))
+                session["login_otp"] = otp
+                session["login_otp_expires"] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
+
+                print("=" * 50)
+                print("RESENT OTP")
+                print("Student ID:", session.get("pending_student_id"))
+                print("Generated OTP:", otp)
+                print("=" * 50)
+
+                session["student_pre_auth_otp_identifier"] = normalized_email
+                session["student_pre_auth_mobile"] = mobile
+                otp_step = True
+                resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
+                flash("OTP resent successfully.", "success")
 
         elif action == "verify_login_otp":
             otp_step = True
@@ -3295,23 +3309,40 @@ def student_login():
             resend_available_at = request.form.get("resend_available_at", "")
             if not otp_identifier or not user_id:
                 error = "Session expired. Please login again."
-            elif not validate_otp(otp_identifier, "student_login", otp_code):
-                error = "Invalid or expired OTP."
             else:
-                conn = get_db_connection()
-                cursor = conn.cursor()
-                reset_failed_logins(cursor, "student_details", user_id)
-                conn.commit()
-                conn.close()
-                session.pop("student_pre_auth_email", None)
-                session.pop("student_pre_auth_user_id", None)
-                session.pop("student_pre_auth_identifier", None)
-                session.pop("student_pre_auth_otp_identifier", None)
-                session.pop("student_pre_auth_mobile", None)
-                set_permanent_session("student", user_id)
-                log_login_attempt(session["user_id"], "student", True)
-                session["new_login_location"] = has_new_login_location(user_id, "student")
-                return redirect(url_for("student_dashboard"))
+                stored_otp = session.get("login_otp")
+                expires_raw = session.get("login_otp_expires")
+                expires_at = None
+                if expires_raw:
+                    try:
+                        expires_at = datetime.fromisoformat(expires_raw)
+                    except ValueError:
+                        expires_at = None
+                if (
+                    not stored_otp
+                    or not expires_at
+                    or datetime.utcnow() > expires_at
+                    or otp_code != stored_otp
+                ):
+                    error = "Invalid or expired OTP."
+                else:
+                    conn = get_db_connection()
+                    cursor = conn.cursor()
+                    reset_failed_logins(cursor, "student_details", user_id)
+                    conn.commit()
+                    conn.close()
+                    session.pop("student_pre_auth_email", None)
+                    session.pop("student_pre_auth_user_id", None)
+                    session.pop("student_pre_auth_identifier", None)
+                    session.pop("student_pre_auth_otp_identifier", None)
+                    session.pop("student_pre_auth_mobile", None)
+                    session.pop("pending_student_id", None)
+                    session.pop("login_otp", None)
+                    session.pop("login_otp_expires", None)
+                    set_permanent_session("student", user_id)
+                    log_login_attempt(session["user_id"], "student", True)
+                    session["new_login_location"] = has_new_login_location(user_id, "student")
+                    return redirect(url_for("student_dashboard"))
 
     if session.get("role") == "student":
         return redirect(url_for("student_dashboard"))
@@ -4063,8 +4094,7 @@ def student_qr_detail():
     )
 
 
-@app.route("/verify/<qr_token>")
-def verify_student(qr_token):
+def render_public_verify(qr_token, student_id_hint=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -4088,6 +4118,9 @@ def verify_student(qr_token):
     )
     student = cursor.fetchone()
     if not student:
+        conn.close()
+        abort(404)
+    if student_id_hint and str(student["student_id"]).upper() != str(student_id_hint).upper():
         conn.close()
         abort(404)
     cursor.execute(
@@ -4132,6 +4165,16 @@ def verify_student(qr_token):
         verified_by_admin_name=student["verified_by_admin_name"],
         title="Identity Verification",
     )
+
+
+@app.route("/verify/<qr_token>")
+def verify_student(qr_token):
+    return render_public_verify(qr_token)
+
+
+@app.route("/verify/<student_id>/<name_slug>/<qr_token>")
+def verify_student_named(student_id, name_slug, qr_token):
+    return render_public_verify(qr_token, student_id_hint=student_id)
 
 
 @app.route("/admin/dashboard")
