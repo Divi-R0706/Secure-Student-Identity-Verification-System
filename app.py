@@ -9,6 +9,9 @@ import re
 import smtplib
 import sqlite3
 import unicodedata
+from urllib import error as urlerror
+from urllib import parse as urlparse
+from urllib import request as urlrequest
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 from uuid import uuid4
@@ -1352,6 +1355,9 @@ TRANSLATIONS.setdefault("hi", {}).update(
     {
         "Session expired due to inactivity.": "निष्क्रियता के कारण सत्र समाप्त हो गया।",
         "OTP resent successfully.": "ओटीपी सफलतापूर्वक फिर से भेजा गया।",
+        "Could not send OTP to registered mobile. Please try again.": "पंजीकृत मोबाइल पर OTP नहीं भेजा जा सका। कृपया पुनः प्रयास करें।",
+        "Could not resend OTP to registered mobile. Please try again.": "पंजीकृत मोबाइल पर OTP दोबारा नहीं भेजा जा सका। कृपया पुनः प्रयास करें।",
+        "Reset OTP sent to registered mobile number.": "रीसेट OTP पंजीकृत मोबाइल नंबर पर भेज दिया गया है।",
         "No student account found for that ID.": "उस आईडी के लिए कोई छात्र खाता नहीं मिला।",
         "No admin account found for that email.": "उस ईमेल के लिए कोई एडमिन खाता नहीं मिला।",
         "No super admin account found for that email.": "उस ईमेल के लिए कोई सुपर एडमिन खाता नहीं मिला।",
@@ -1398,6 +1404,9 @@ TRANSLATIONS.setdefault("ta", {}).update(
     {
         "Session expired due to inactivity.": "செயலற்ற நிலையில் இருந்ததால் அமர்வு முடிந்துவிட்டது.",
         "OTP resent successfully.": "OTP வெற்றிகரமாக மீண்டும் அனுப்பப்பட்டது.",
+        "Could not send OTP to registered mobile. Please try again.": "பதிவுசெய்யப்பட்ட மொபைல் எண்ணுக்கு OTP அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+        "Could not resend OTP to registered mobile. Please try again.": "பதிவுசெய்யப்பட்ட மொபைல் எண்ணுக்கு OTP-ஐ மீண்டும் அனுப்ப முடியவில்லை. மீண்டும் முயற்சிக்கவும்.",
+        "Reset OTP sent to registered mobile number.": "கடவுச்சொல் மீட்டமைப்பு OTP பதிவு செய்யப்பட்ட மொபைல் எண்ணுக்கு அனுப்பப்பட்டது.",
         "No student account found for that ID.": "அந்த ஐடிக்கான மாணவர் கணக்கு கிடைக்கவில்லை.",
         "No admin account found for that email.": "அந்த மின்னஞ்சலுக்கான நிர்வாகி கணக்கு கிடைக்கவில்லை.",
         "No super admin account found for that email.": "அந்த மின்னஞ்சலுக்கான சூப்பர் நிர்வாகி கணக்கு கிடைக்கவில்லை.",
@@ -2221,6 +2230,26 @@ def generate_otp():
     return str(random.randint(100000, 999999))
 
 
+def normalize_phone_number(value):
+    digits = re.sub(r"\D+", "", str(value or ""))
+    if not digits:
+        return ""
+    if len(digits) == 10:
+        return f"+91{digits}"
+    if len(digits) == 12 and digits.startswith("91"):
+        return f"+{digits}"
+    if str(value or "").strip().startswith("+"):
+        return f"+{digits}"
+    return f"+{digits}"
+
+
+def mask_phone_number(value):
+    digits = re.sub(r"\D+", "", str(value or ""))
+    if len(digits) < 4:
+        return str(value or "")
+    return f"******{digits[-4:]}"
+
+
 def send_otp_email(recipient, otp_code, purpose):
     title_map = {
         "student_login": "Student Login Verification",
@@ -2253,7 +2282,48 @@ def send_otp_email(recipient, otp_code, purpose):
         return False
 
 
-def create_otp_record(email, purpose, user_id=None):
+def send_otp_sms(recipient_mobile, otp_code, purpose):
+    title_map = {
+        "student_login": "Student Login Verification",
+        "student_reset": "Student Password Reset",
+        "admin_reset": "Admin Password Reset",
+        "superadmin_reset": "Super Admin Password Reset",
+    }
+    body = f"IDENZA OTP ({title_map.get(purpose, 'OTP Verification')}): {otp_code}. Valid for 5 minutes."
+
+    provider = os.getenv("SMS_PROVIDER", "twilio").strip().lower()
+    if provider != "twilio":
+        print(f"Unsupported SMS provider '{provider}'.")
+        return False
+
+    account_sid = os.getenv("TWILIO_ACCOUNT_SID", "").strip()
+    auth_token = os.getenv("TWILIO_AUTH_TOKEN", "").strip()
+    from_number = normalize_phone_number(os.getenv("TWILIO_FROM_NUMBER", ""))
+    to_number = normalize_phone_number(recipient_mobile)
+
+    if not (account_sid and auth_token and from_number and to_number):
+        print(f"[OTP] purpose={purpose} mobile={to_number or recipient_mobile} code={otp_code}")
+        return False
+
+    endpoint = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+    form = urlparse.urlencode({"To": to_number, "From": from_number, "Body": body}).encode("utf-8")
+    basic = base64.b64encode(f"{account_sid}:{auth_token}".encode("utf-8")).decode("ascii")
+    req = urlrequest.Request(endpoint, data=form, method="POST")
+    req.add_header("Authorization", f"Basic {basic}")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    try:
+        with urlrequest.urlopen(req, timeout=20) as response:
+            status = getattr(response, "status", 200)
+            return int(status) < 300
+    except urlerror.HTTPError as exc:
+        print(f"Failed to send OTP SMS: HTTP {exc.code}")
+        return False
+    except Exception as exc:
+        print(f"Failed to send OTP SMS: {exc}")
+        return False
+
+
+def create_otp_record(identifier, purpose, user_id=None):
     otp_code = generate_otp()
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -2263,7 +2333,7 @@ def create_otp_record(email, purpose, user_id=None):
         VALUES (?, ?, ?, ?, ?, 0, ?)
         """,
         (
-            email,
+            identifier,
             user_id,
             purpose,
             hash_password(otp_code),
@@ -2273,8 +2343,13 @@ def create_otp_record(email, purpose, user_id=None):
     )
     conn.commit()
     conn.close()
-    print(f"[OTP] purpose={purpose} email={email} code={otp_code}")
+    print(f"[OTP] purpose={purpose} identifier={identifier} code={otp_code}")
     return otp_code
+
+
+def allow_logged_otp_fallback():
+    value = (os.getenv("ALLOW_LOGGED_OTP_FALLBACK", "1") or "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
 
 
 def validate_otp(email, purpose, otp_code):
@@ -2808,7 +2883,12 @@ def init_db():
             (user_id, name, school_id, status),
         )
 
-    if os.path.exists(CSV_STUDENT_DATA_FILE):
+    cursor.execute("SELECT COUNT(*) AS total FROM student_details")
+    has_student_rows = (cursor.fetchone()["total"] or 0) > 0
+
+    # Seed CSV data only for first-time bootstrap.
+    # After initial import, runtime/admin updates in DB remain the source of truth.
+    if os.path.exists(CSV_STUDENT_DATA_FILE) and not has_student_rows:
         with open(CSV_STUDENT_DATA_FILE, newline="", encoding="utf-8-sig") as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
@@ -2831,7 +2911,6 @@ def init_db():
                     INSERT INTO users (email, password, role)
                     VALUES (?, ?, 'student')
                     ON CONFLICT(email) DO UPDATE SET
-                        password = excluded.password,
                         role = 'student'
                     """,
                     (email, hash_password(raw_password)),
@@ -2866,18 +2945,8 @@ def init_db():
                     raw_password,
                 )
                 if existing:
-                    cursor.execute(
-                        """
-                        UPDATE student_details
-                        SET user_id = ?, name = ?, course = ?, register_number = ?, year_of_study = ?,
-                            current_semester = ?, arrear_count = ?, boarding_status = ?, warden_name = ?,
-                            mentor_name = ?, room_no = ?, attendance_percentage = ?, sgpa_history = ?,
-                            sgpa = ?, cgpa = ?, student_id = ?, dob = ?, emis_id = ?, parent_mobile = ?,
-                            school_info = ?, class_name = ?, school_id = ?, login_password = ?
-                        WHERE id = ?
-                        """,
-                        payload + (existing["id"],),
-                    )
+                    # Preserve live/admin-managed records. CSV is only for initial seeding.
+                    pass
                 else:
                     cursor.execute(
                         """
@@ -3137,7 +3206,7 @@ def student_login():
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT u.id, u.password, s.student_id, s.failed_attempts, s.locked_until
+                SELECT u.id, u.password, s.student_id, s.parent_mobile, s.failed_attempts, s.locked_until
                 FROM users u
                 JOIN student_details s ON s.user_id = u.id
                 WHERE u.email = ? AND u.role = 'student'
@@ -3159,39 +3228,74 @@ def student_login():
                 error = "Account locked. Try again after 15 minutes." if locked_now else "Invalid student ID or password."
             else:
                 conn.close()
-                otp_code = create_otp_record(normalized_email, "student_login", user["id"])
-                if send_otp_email(normalized_email, otp_code, "student_login"):
+                mobile = normalize_phone_number(user["parent_mobile"])
+                sent_via_mobile = False
+                sent = False
+                if mobile:
+                    otp_identifier = mobile
+                    otp_code = create_otp_record(otp_identifier, "student_login", user["id"])
+                    sent = send_otp_sms(mobile, otp_code, "student_login")
+                    sent_via_mobile = sent
+                    if not sent and allow_logged_otp_fallback():
+                        # OTP is already logged by create_otp_record; allow verification via logs.
+                        sent = True
+                else:
+                    # Only fallback to email when no mobile is registered.
+                    otp_identifier = normalized_email
+                    otp_code = create_otp_record(otp_identifier, "student_login", user["id"])
+                    sent = send_otp_email(normalized_email, otp_code, "student_login")
+                if sent:
                     session["student_pre_auth_user_id"] = user["id"]
                     session["student_pre_auth_email"] = normalized_email
+                    session["student_pre_auth_otp_identifier"] = otp_identifier
+                    session["student_pre_auth_mobile"] = mobile if sent_via_mobile else ""
                     session["student_pre_auth_identifier"] = user["student_id"]
                     otp_step = True
                     resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
                 else:
-                    error = "Could not send OTP. Please try again."
+                    error = "Could not send OTP to registered mobile. Please try again."
 
         elif action == "resend_login_otp":
             normalized_email = session.get("student_pre_auth_email")
             user_id = session.get("student_pre_auth_user_id")
+            otp_identifier = session.get("student_pre_auth_otp_identifier")
+            mobile = session.get("student_pre_auth_mobile")
             login_value = session.get("student_pre_auth_identifier", login_value)
-            if not normalized_email or not user_id:
+            if not normalized_email or not user_id or not otp_identifier:
                 error = "Session expired. Please login again."
             else:
-                otp_code = create_otp_record(normalized_email, "student_login", user_id)
-                send_otp_email(normalized_email, otp_code, "student_login")
-                otp_step = True
-                resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
-                flash("OTP resent successfully.", "success")
+                sent_via_mobile = False
+                sent = False
+                if mobile:
+                    otp_identifier = mobile
+                    otp_code = create_otp_record(otp_identifier, "student_login", user_id)
+                    sent = send_otp_sms(mobile, otp_code, "student_login")
+                    sent_via_mobile = sent
+                    if not sent and allow_logged_otp_fallback():
+                        sent = True
+                else:
+                    otp_identifier = normalized_email
+                    otp_code = create_otp_record(otp_identifier, "student_login", user_id)
+                    sent = send_otp_email(normalized_email, otp_code, "student_login")
+                if sent:
+                    session["student_pre_auth_otp_identifier"] = otp_identifier
+                    session["student_pre_auth_mobile"] = mobile if sent_via_mobile else ""
+                    otp_step = True
+                    resend_available_at = (now_utc() + timedelta(seconds=45)).isoformat()
+                    flash("OTP resent successfully.", "success")
+                else:
+                    error = "Could not resend OTP to registered mobile. Please try again."
 
         elif action == "verify_login_otp":
             otp_step = True
-            normalized_email = session.get("student_pre_auth_email")
+            otp_identifier = session.get("student_pre_auth_otp_identifier")
             user_id = session.get("student_pre_auth_user_id")
             login_value = session.get("student_pre_auth_identifier", login_value)
             otp_code = request.form.get("otp", "").strip()
             resend_available_at = request.form.get("resend_available_at", "")
-            if not normalized_email or not user_id:
+            if not otp_identifier or not user_id:
                 error = "Session expired. Please login again."
-            elif not validate_otp(normalized_email, "student_login", otp_code):
+            elif not validate_otp(otp_identifier, "student_login", otp_code):
                 error = "Invalid or expired OTP."
             else:
                 conn = get_db_connection()
@@ -3202,6 +3306,8 @@ def student_login():
                 session.pop("student_pre_auth_email", None)
                 session.pop("student_pre_auth_user_id", None)
                 session.pop("student_pre_auth_identifier", None)
+                session.pop("student_pre_auth_otp_identifier", None)
+                session.pop("student_pre_auth_mobile", None)
                 set_permanent_session("student", user_id)
                 log_login_attempt(session["user_id"], "student", True)
                 session["new_login_location"] = has_new_login_location(user_id, "student")
@@ -3216,7 +3322,7 @@ def student_login():
         otp_step=otp_step,
         login_value=login_value,
         resend_available_at=resend_available_at,
-        otp_target=session.get("student_pre_auth_identifier", login_value),
+        otp_target=mask_phone_number(session.get("student_pre_auth_mobile")) or session.get("student_pre_auth_identifier", login_value),
     )
 
 
@@ -3301,7 +3407,7 @@ def student_forgot_password():
             cursor = conn.cursor()
             cursor.execute(
                 """
-                SELECT u.id, s.student_id
+                SELECT u.id, s.student_id, s.parent_mobile
                 FROM users u
                 JOIN student_details s ON s.user_id = u.id
                 WHERE u.email = ? AND u.role = 'student'
@@ -3313,22 +3419,52 @@ def student_forgot_password():
             if not user:
                 flash("No student account found for that ID.", "error")
             else:
-                otp_code = create_otp_record(normalized_email, "student_reset", user["id"])
-                send_otp_email(normalized_email, otp_code, "student_reset")
+                mobile = normalize_phone_number(user["parent_mobile"])
+                sent_via_mobile = False
+                sent = False
+                if mobile:
+                    otp_identifier = mobile
+                    otp_code = create_otp_record(otp_identifier, "student_reset", user["id"])
+                    sent = send_otp_sms(mobile, otp_code, "student_reset")
+                    sent_via_mobile = sent
+                    if not sent and allow_logged_otp_fallback():
+                        sent = True
+                else:
+                    otp_identifier = normalized_email
+                    otp_code = create_otp_record(otp_identifier, "student_reset", user["id"])
+                    sent = send_otp_email(normalized_email, otp_code, "student_reset")
+                if not sent:
+                    flash("Could not send OTP to registered mobile. Please try again.", "error")
+                    return render_template(
+                        "forgot_password.html",
+                        otp_step=otp_step,
+                        identifier=identifier,
+                        panel_subtitle="Student password recovery",
+                        step_one_label="Enter student ID",
+                        identifier_label="Student ID / Username",
+                        identifier_placeholder="Enter student ID",
+                        back_url=url_for("student_login"),
+                    )
                 session["student_reset_email"] = normalized_email
+                session["student_reset_otp_identifier"] = otp_identifier
+                session["student_reset_mobile"] = mobile if sent_via_mobile else ""
                 session["student_reset_identifier"] = user["student_id"]
                 otp_step = True
-                flash("Reset OTP generated. Check terminal output.", "success")
+                if sent_via_mobile:
+                    flash("Reset OTP sent to registered mobile number.", "success")
+                else:
+                    flash("Reset OTP generated. Check terminal output.", "success")
         elif action == "reset_password":
             otp_step = True
             normalized_email = session.get("student_reset_email")
+            otp_identifier = session.get("student_reset_otp_identifier")
             identifier = session.get("student_reset_identifier", identifier)
             otp_code = request.form.get("otp", "").strip()
             new_password = request.form.get("new_password", "")
             confirm_password = request.form.get("confirm_password", "")
             if new_password != confirm_password:
                 flash("Passwords do not match.", "error")
-            elif not validate_otp(normalized_email, "student_reset", otp_code):
+            elif not otp_identifier or not validate_otp(otp_identifier, "student_reset", otp_code):
                 flash("Invalid or expired OTP.", "error")
             else:
                 conn = get_db_connection()
@@ -3349,6 +3485,8 @@ def student_forgot_password():
                 conn.close()
                 session.pop("student_reset_email", None)
                 session.pop("student_reset_identifier", None)
+                session.pop("student_reset_otp_identifier", None)
+                session.pop("student_reset_mobile", None)
                 flash("Password reset successful. Please login again.", "success")
                 return redirect(url_for("student_login"))
     return render_template(
