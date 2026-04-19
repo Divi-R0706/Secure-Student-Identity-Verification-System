@@ -3260,11 +3260,11 @@ def student_login():
                 session["login_otp"] = otp
                 session["login_otp_expires"] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
 
-                print("=" * 50)
-                print("LOGIN OTP GENERATED")
-                print("Student ID:", identifier)
-                print("Generated OTP:", otp)
-                print("=" * 50)
+                print("=" * 50, flush=True)
+                print("LOGIN OTP GENERATED", flush=True)
+                print("Student ID:", identifier, flush=True)
+                print("Generated OTP:", otp, flush=True)
+                print("=" * 50, flush=True)
 
                 session["student_pre_auth_user_id"] = user["id"]
                 session["student_pre_auth_email"] = normalized_email
@@ -3288,11 +3288,11 @@ def student_login():
                 session["login_otp"] = otp
                 session["login_otp_expires"] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
 
-                print("=" * 50)
-                print("RESENT OTP")
-                print("Student ID:", session.get("pending_student_id"))
-                print("Generated OTP:", otp)
-                print("=" * 50)
+                print("=" * 50, flush=True)
+                print("RESENT OTP", flush=True)
+                print("Student ID:", session.get("pending_student_id"), flush=True)
+                print("Generated OTP:", otp, flush=True)
+                print("=" * 50, flush=True)
 
                 session["student_pre_auth_otp_identifier"] = normalized_email
                 session["student_pre_auth_mobile"] = mobile
@@ -4785,7 +4785,6 @@ def logout():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
 
 
 
