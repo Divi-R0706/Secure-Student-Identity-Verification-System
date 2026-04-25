@@ -41,6 +41,8 @@ LOCKOUT_LIMIT = 5
 LOCKOUT_MINUTES = 15
 SESSION_TIMEOUT_MINUTES = 20
 SESSION_WARNING_MINUTES = 18
+APP_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
+APP_TIMEZONE_LABEL = "IST"
 
 
 def repair_mojibake_text(value):
@@ -1823,8 +1825,12 @@ def now_utc():
     return datetime.now(timezone.utc)
 
 
+def now_local():
+    return datetime.now(APP_TIMEZONE).replace(microsecond=0)
+
+
 def now_local_naive():
-    return datetime.now().replace(microsecond=0)
+    return now_local().replace(tzinfo=None)
 
 
 def parse_local_naive_datetime(value):
@@ -1864,13 +1870,10 @@ def parse_local_naive_datetime(value):
 
 
 def format_timestamp(value):
-    if not value:
-        return "-"
-    try:
-        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        return dt.astimezone(timezone.utc).strftime("%d %b %Y, %I:%M %p UTC")
-    except ValueError:
-        return value
+    dt = parse_datetime(value)
+    if not dt:
+        return value or "-"
+    return dt.astimezone(APP_TIMEZONE).strftime(f"%d %b %Y, %I:%M %p {APP_TIMEZONE_LABEL}")
 
 
 app.jinja_env.filters["datetime"] = format_timestamp
@@ -1894,6 +1897,20 @@ def parse_datetime(value):
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
     except ValueError:
         return None
+
+
+def is_recent_utc_timestamp(value, hours=24):
+    parsed = parse_datetime(value)
+    return bool(parsed and parsed >= now_utc() - timedelta(hours=hours))
+
+
+def sort_timestamp_desc(values, accessor=None):
+    def sort_key(item):
+        target = accessor(item) if accessor else item
+        parsed = parse_datetime(target)
+        return parsed.timestamp() if parsed else float("-inf")
+
+    return sorted(values, key=sort_key, reverse=True)
 
 
 def format_date_for_input(value):
@@ -2168,20 +2185,18 @@ def sync_student_verification_from_documents(cursor, user_id, admin_user_id=None
 def get_recent_successful_logins(user_id, role, limit=5):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cutoff = (now_utc() - timedelta(hours=24)).isoformat(timespec="seconds")
     cursor.execute(
         """
         SELECT ip_address, login_at
         FROM login_logs
-        WHERE user_id = ? AND role = ? AND success = 1 AND datetime(login_at) >= datetime(?)
-        ORDER BY datetime(login_at) DESC, id DESC
-        LIMIT ?
+        WHERE user_id = ? AND role = ? AND success = 1
+        ORDER BY id DESC
         """,
-        (str(user_id), role, cutoff, limit),
+        (str(user_id), role),
     )
-    rows = cursor.fetchall()
+    rows = [row for row in cursor.fetchall() if is_recent_utc_timestamp(row["login_at"], hours=24)]
     conn.close()
-    return rows
+    return rows[:limit]
 
 
 def has_new_login_location(user_id, role):
@@ -2201,28 +2216,31 @@ def has_new_login_location(user_id, role):
     if not latest:
         conn.close()
         return False
-    threshold = (now_utc() - timedelta(days=30)).isoformat()
     cursor.execute(
         """
-        SELECT 1
+        SELECT ip_address, login_at
         FROM login_logs
-        WHERE user_id = ? AND role = ? AND success = 1 AND ip_address = ? AND login_at < ? AND login_at >= ?
-        LIMIT 1
+        WHERE user_id = ? AND role = ? AND success = 1
+        ORDER BY id DESC
         """,
-        (str(user_id), role, latest["ip_address"], latest["login_at"], threshold),
+        (str(user_id), role),
     )
-    seen_before = cursor.fetchone() is not None
-    cursor.execute(
-        """
-        SELECT 1
-        FROM login_logs
-        WHERE user_id = ? AND role = ? AND success = 1 AND login_at < ?
-        LIMIT 1
-        """,
-        (str(user_id), role, latest["login_at"]),
-    )
-    has_prior_success = cursor.fetchone() is not None
+    all_logins = cursor.fetchall()
     conn.close()
+    latest_time = parse_datetime(latest["login_at"])
+    threshold = now_utc() - timedelta(days=30)
+    prior_logins = []
+    for row in all_logins:
+        row_time = parse_datetime(row["login_at"])
+        if row_time and latest_time and row_time < latest_time:
+            prior_logins.append(row)
+    has_prior_success = bool(prior_logins)
+    seen_before = any(
+        row["ip_address"] == latest["ip_address"]
+        and parse_datetime(row["login_at"])
+        and parse_datetime(row["login_at"]) >= threshold
+        for row in prior_logins
+    )
     return has_prior_success and not seen_before
 
 
@@ -2524,12 +2542,11 @@ def get_student_notifications(user_id):
           AND COALESCE(doc_status, 'Pending') = 'Verified'
           AND COALESCE(student_notification_hidden, 0) = 0
           AND verified_at IS NOT NULL
-          AND datetime(verified_at) >= datetime('now', '-1 day')
         ORDER BY id DESC
         """,
         (user_id,),
     )
-    verified_documents = cursor.fetchall()
+    verified_documents = [row for row in cursor.fetchall() if is_recent_utc_timestamp(row["verified_at"], hours=24)]
     conn.close()
     def safe_document_title(raw_value, fallback):
         text = str(raw_value or "").strip()
@@ -2567,7 +2584,7 @@ def get_student_notifications(user_id):
                 "time": document["verified_at"],
             }
         )
-    notifications.sort(key=lambda item: item.get("time") or "", reverse=True)
+    notifications = sort_timestamp_desc(notifications, accessor=lambda item: item.get("time"))
     return len(notifications), notifications
 
 
@@ -2576,30 +2593,16 @@ def get_admin_notifications(school_id, limit=10):
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT COUNT(*) AS total
-        FROM uploaded_documents d
-        JOIN student_details s ON s.user_id = d.user_id
-        WHERE s.school_id = ?
-          AND COALESCE(d.doc_status, 'Pending') = 'Pending'
-          AND datetime(d.uploaded_at) >= datetime('now', '-1 day')
-        """,
-        (school_id,),
-    )
-    total = cursor.fetchone()["total"]
-    cursor.execute(
-        """
         SELECT s.id AS student_row_id, s.name AS student_name, s.student_id, d.document_type, d.uploaded_at
         FROM uploaded_documents d
         JOIN student_details s ON s.user_id = d.user_id
         WHERE s.school_id = ?
           AND COALESCE(d.doc_status, 'Pending') = 'Pending'
-          AND datetime(d.uploaded_at) >= datetime('now', '-1 day')
         ORDER BY d.id DESC
-        LIMIT ?
         """,
-        (school_id, limit),
+        (school_id,),
     )
-    rows = cursor.fetchall()
+    rows = [row for row in cursor.fetchall() if is_recent_utc_timestamp(row["uploaded_at"], hours=24)]
     conn.close()
     def safe_document_title(raw_value):
         text = str(raw_value or "").strip()
@@ -2619,7 +2622,8 @@ def get_admin_notifications(school_id, limit=10):
                 "time": row["uploaded_at"],
             }
         )
-    return total, notifications
+    notifications = sort_timestamp_desc(notifications, accessor=lambda item: item.get("time"))
+    return len(rows), notifications[:limit]
 
 
 def format_audit_details(action, details):
@@ -3990,7 +3994,7 @@ def student_tasks():
         student=student,
         tasks=tasks,
         now_iso=now_local.isoformat(),
-        min_deadline_at=datetime.now().strftime("%Y-%m-%dT%H:%M"),
+        min_deadline_at=now_local.strftime("%Y-%m-%dT%H:%M"),
         sidebar_links=student_sidebar(),
         active_endpoint="student_tasks",
     )
@@ -4207,13 +4211,11 @@ def school_admin_dashboard():
         FROM verification_scans vs
         JOIN student_details s ON s.student_id = vs.student_id
         WHERE s.school_id = ?
-          AND datetime(vs.scanned_at) >= datetime('now', '-1 day')
         ORDER BY vs.id DESC
-        LIMIT 10
         """,
         (admin["school_id"],),
     )
-    recent_scans = cursor.fetchall()
+    recent_scans = [row for row in cursor.fetchall() if is_recent_utc_timestamp(row["scanned_at"], hours=24)][:10]
     conn.close()
     classes = []
     for standard in range(1, 13):
@@ -4610,12 +4612,11 @@ def admin_audit_log():
             FROM audit_log al
             LEFT JOIN admin_profiles ap ON CAST(al.admin_id AS INTEGER) = ap.user_id
             WHERE al.school_id = ?
-              AND datetime(al.timestamp) >= datetime('now', '-24 hours')
             ORDER BY al.id DESC
             """,
             (admin["school_id"],),
         )
-        logs = cursor.fetchall()
+        logs = [row for row in cursor.fetchall() if is_recent_utc_timestamp(row["timestamp"], hours=24)]
         conn.close()
         return render_template(
             "admin_audit_log.html",
@@ -4635,11 +4636,10 @@ def admin_audit_log():
         FROM audit_log al
         LEFT JOIN admin_profiles ap ON CAST(al.admin_id AS INTEGER) = ap.user_id
         LEFT JOIN schools sc ON sc.id = al.school_id
-        WHERE datetime(al.timestamp) >= datetime('now', '-24 hours')
         ORDER BY al.id DESC
         """,
     )
-    logs = cursor.fetchall()
+    logs = [row for row in cursor.fetchall() if is_recent_utc_timestamp(row["timestamp"], hours=24)]
     conn.close()
     return render_template(
         "admin_audit_log.html",
@@ -4785,6 +4785,3 @@ def logout():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
-
-
-
